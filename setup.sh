@@ -29,7 +29,6 @@ die() {
 
 cd "${BASEDIR}/../duet-kernel"
 KERNEL_VERSION_APPEND="+duet-$(git rev-parse --short HEAD)"
-KERNEL_REVISION="$(git rev-parse --short HEAD)"
 cd "${STARTDIR}"
 
 while getopts ":dckgmtKMTu" opt; do
@@ -72,8 +71,7 @@ while getopts ":dckgmtKMTu" opt; do
 
 		# (re)compile the kernel
 		cd "${BASEDIR}/../duet-kernel"
-		time fakeroot make-kpkg --initrd --revision="${KERNEL_REVISION}" \
-			--append-to-version="${KERNEL_VERSION_APPEND}" \
+		time fakeroot make-kpkg --initrd --append-to-version="${KERNEL_VERSION_APPEND}" \
 			kernel_image kernel_headers $KDBG || die
 
 		echo "Done compiling Duet kernel."
