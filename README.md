@@ -77,12 +77,16 @@ have an existing KVM server, skip to step 3.
    ```xml
    <domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
    <qemu:commandline>
-     <qemu:arg value='-s'/>
+     <qemu:arg value='-gdb'/>
+     <qemu:arg value='tcp::1234'/>
    </qemu:commandline>
    ```
 
    This config file is generally found at */etc/libvirt/qemu/*, although you
    shouldn't edit it [manually](https://gymnasmata.wordpress.com/2010/12/02/setting-up-gdb-to-work-with-qemu-kvm-via-libvirt/).
+   Finally, if you are running multiple VMs on the same host, and want to hook
+   into more than one of them, make sure to pick a unique TCP port number for
+   each!
 
 5. Get NFS server up and running on the host:
 
@@ -176,12 +180,25 @@ have an existing KVM server, skip to step 3.
     (gdb) target remote :1234
     ```
 
-### Parting tips
+13. Compile, install, and load module on guest
 
-If you want to recompile, do so on the host. Then follow step 9 as before.
+    ```
+    $ ./setup.sh -m && ./setup.sh -M
+    ```
 
-On Ubuntu server, you can change hostname by editing ```/etc/hostname```,
-```/etc/hosts```, and running ```sudo service hostname restart```.
+14. Compile, install, and load tools on guest
+
+    ```
+    $ ./setup.sh -t && ./setup.sh -T
+    ```
+
+### Parting tips and tricks
+
+ * If you want to recompile, do so on the host. Then follow guide starting at
+   step 9.
+ * On Ubuntu you can change hostname by editing ```/etc/hostname```,
+   ```/etc/hosts```, and running ```sudo service hostname restart```.
+ * The dummy task is your friend in understanding how the Duet API works.
 
 ### [Examples](https://www.kernel.org/doc/Documentation/gdb-kernel-debugging.txt) of using the Linux-provided gdb helpers
 

@@ -89,17 +89,18 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	t)
-		# TODO
-		# ...and (re)compile the duet tools (install if not present)
-		cd "${BASEDIR}/duet-progs"
+		cd "${BASEDIR}/../duet-tools"
+
+		# (re)compile the duet tools
+		cd duet-progs
 		make || die
 		locate libduet | grep /usr/local/lib > /dev/null
 		if [[ $? == 1 ]]; then
 			sudo make install
 		fi
 
-		# ...and (re)compile the dummy task
-		cd "${BASEDIR}/dummy_task"
+		# (re)compile the dummy task
+		cd ../dummy_task
 		make || die
 
 		exit 0
@@ -125,22 +126,12 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	T)
-		# TODO
-		# Install the btrfs tools (in /usr/local/bin)
-		cd "${BASEDIR}/btrfs-progs-3.12+duet"
-		sudo make install || die
+		cd "${BASEDIR}/../duet-tools"
 
 		# Install the duet tools (in /usr/local/bin)
-		cd "${BASEDIR}/duet-progs"
+		cd duet-progs
 		sudo make install || die
 
-		# Install the f2fs tools (in /usr/local/bin)
-		cd "${BASEDIR}/f2fs-tools"
-		sudo make install || die
-
-		# Do not install rsync; it will replace the stock rsync
-
-		cd ..
 		exit 0
 		;;
 	u)
