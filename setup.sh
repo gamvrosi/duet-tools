@@ -23,7 +23,7 @@ usage() {
 }
 
 die() {
-	echo "Aborting..."
+	echo "Aborting..." >&2
 	exit 1
 }
 
@@ -39,7 +39,7 @@ while getopts ":dckgmtKMTu" opt; do
 		# Check that we're running on Ubuntu
 		if [[ ! `grep "DISTRIB_ID=Ubuntu" /etc/lsb-release` ]]; then
 			echo "I only know the dependencies for Ubuntu. Sorry." >&2
-			exit 1
+			die
 		fi
 
 		# Install kernel dependencies
@@ -82,7 +82,7 @@ while getopts ":dckgmtKMTu" opt; do
 
 		# (re)compile the duet module
 		moddir="`ls -l /lib/modules | grep ${KERNEL_VERSION_APPEND} | \
-			cut -d' ' -f 9 | head -1`"
+			awk '{print $9}' | head -1`"
 		make -C /lib/modules/${moddir}/build M=$(pwd) modules
 
 		echo "Done compiling Duet module."
@@ -117,7 +117,7 @@ while getopts ":dckgmtKMTu" opt; do
 
 		# Install the module
 		moddir="`ls -l /lib/modules | grep ${KERNEL_VERSION_APPEND} | \
-			cut -d' ' -f 9 | head -1`"
+			awk '{print $9}' | head -1`"
 		sudo make -C /lib/modules/${moddir}/build M=$(pwd) modules_install
 		sudo depmod
 		sudo modprobe duet
@@ -149,11 +149,10 @@ while getopts ":dckgmtKMTu" opt; do
 		;;
 	\?)
 		echo "Invalid option: -$OPTARG" >&2
-        usage
-        exit 1
+        usage && die
 		;;
 	esac
 done
 
-usage
-exit 1
+usage && die
+
