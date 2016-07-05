@@ -141,11 +141,14 @@ have an existing KVM server, skip to step 3.
    ./setup.sh -d
    ```
 
-8. Configure the kernel at the **guest** (be mindful of NFS ID mapping):
+8. Configure the kernel at the **guest**:
 
    ```bash
    ./setup.sh -c
    ```
+
+   Note: you need to be mindful of NFS ID mapping. You can Use ```usermod -u```
+   and ```groupmod -g``` within the VM to match the UID/GID at the host.
 
 9. Compile kernel at the **host**:
 
