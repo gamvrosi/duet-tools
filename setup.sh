@@ -44,7 +44,7 @@ while getopts ":dckgmtKMTu" opt; do
 
 		# Install kernel dependencies
 		sudo apt-get install build-essential kernel-package libssl-dev \
-			libncurses5-dev
+			libncurses5-dev libpopt-dev
 
 		echo "Done processing Ubuntu dependencies."
 		exit 0

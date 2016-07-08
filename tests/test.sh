@@ -82,7 +82,7 @@ test_disk() {
 	echo "## Test 4: Disk workload"
 	sudo modprobe duet || die
 	sudo duet status start || die
-	./eval_disk.sh
+	./eval_disk.sh /dev/vdb1
 	chk_return $? "disk workload test failed"
 	sudo duet status stop || die
 	sudo rmmod duet || die

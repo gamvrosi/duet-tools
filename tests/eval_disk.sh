@@ -10,7 +10,7 @@
 # Set up environment variables
 cd "$(dirname "$0")"
 basedir="$(pwd)"
-fspath="$basedir/fbench"
+fspath="/media/fbench"
 outdir="$basedir/results/"
 cgout="$basedir/cgrabber.out"
 fbprof="$basedir/filebench.prof"
@@ -25,11 +25,12 @@ fetchfreq=(0 10 20 40)
 
 # Set up argument variables
 fspart="$1"
-fssize="`sudo fdisk -l /dev/sdb1 | head -1 | awk '{print $5}'`"
+fssize="`sudo fdisk -l $fspart | head -1 | awk '{print $5}'`"
 
 # build_wkld.sh variables, no need to touch
 explen=8000
 profgran=20
+warmup_periods=6 # periods of $profgran seconds each
 source build_wkld.sh
 
 # Runs one configuration of the microbenchmark
@@ -108,11 +109,9 @@ run_experiments () {
 	echo -e "- Starting filebench... " | tee -a $logpath
 	sudo filebench -f $fbprof 2>&1 | grep --line-buffered "Running..." | \
 	while read; do
-		if [ $running == 0 ]; then
-			running=1
-		elif [ $running == 1 ]; then
-			running=2
-
+		if [ $running -le $warmup_periods ]; then
+			running=$((running+1))
+		elif [ $running -gt $warmup_periods ]; then
 			echo -e "- Running microbenchmarks..." | tee -a $logpath
 			echo -e "  >> Duet off" | tee -a $logpath
 			echo -e "# Results when Duet is off" | tee -a $rfpath
@@ -137,7 +136,7 @@ run_experiments () {
 				echo -e "# Results when event-based Duet is fetching every ${ffreq}ms" | tee -a $rfpath
 				run_one 2 $ffreq 1 "e$ffreq"
 			done
-		elif [ $running == 2 ]; then
+
 			# If we got here, we're done. Filebench must die.
 			fbpid="`ps aux | grep "sudo filebench" | grep -v grep \
 				| awk '{print $2}'`"
@@ -169,13 +168,16 @@ outpfx="$outdir${wkld}_${datstr}"	# Output file prefix
 
 logpath="${outpfx}.log"				# Log file path
 rfpath="${outpfx}.R"				# R file path
+mkdir -p $outdir
+echo "" > $logpath
+echo "" > $rfpath
 
 # Create filesystem and mount it
 sudo umount $fspart
 sudo mkdir -p $fspath
 sudo logrotate -f /etc/logrotate.conf
 echo "- Creating ext4 filesystem on $fspart..." | tee -a $logpath
-sudo mkfs.ext4 -f $fspart
+sudo mkfs.ext4 -F $fspart
 echo "- Mounting ext4 filesystem on $fspath..." | tee -a $logpath
 sudo mount $fspart $fspath
 
