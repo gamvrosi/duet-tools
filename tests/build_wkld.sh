@@ -8,7 +8,7 @@ compileprof () {
 	"var")	# Varmail personality
 		nfiles="`echo "$fssize * 0.4 / 1048576" | bc`"
 		fbperson="#
-# Varmail personality, as found in Filebench 1.5.0.0-alpha1, varmail.f
+# Varmail personality, as found in Filebench 1.5-alpha1, varmail.f
 #
 
 set \$dir=$fspath
@@ -50,7 +50,7 @@ echo  \"Varmail Version 3.0 personality successfully loaded\""
 	"wsv")	# Webserver personality
 		nfiles="`echo "$fssize * 0.4 / 1048576" | bc`"
 		fbperson="#
-# Webserver personality, as found in Filebench 1.5.0.0-alpha1, webserver.f
+# Webserver personality, as found in Filebench 1.5-alpha1, webserver.f
 #
 
 set \$dir=$fspath
@@ -110,7 +110,7 @@ echo  \"Web-server Version 3.1 personality successfully loaded\""
 	"wpx")	# Webproxy personality
 		nfiles="`echo "$fssize * 0.5 / 1048576" | bc`" # we only prealloc 80%
 		fbperson="#
-# Webproxy personality, as found in Filebench 1.5.0.0-alpha1, webproxy.f
+# Webproxy personality, as found in Filebench 1.5-alpha1, webproxy.f
 #
 
 set \$dir=$fspath
@@ -156,7 +156,7 @@ echo  \"Web proxy-server Version 3.0 personality successfully loaded\""
 	"fsv")	# Fileserver personality
 		nfiles="`echo "$fssize * 0.4 / 2097152" | bc`"
 		fbperson="#
-# Fileserver personality, as found in Filebench 1.5.0.0-alpha1, fileserver.f
+# Fileserver personality, as found in Filebench 1.5-alpha1, fileserver.f
 #
 
 set \$dir=$fspath
@@ -193,5 +193,5 @@ echo  \"File-server Version 3.0 personality successfully loaded\""
 		;;
 	esac
 
-	echo -e "$fbperson\npsrun -$profgran $explen" > fbperson.f
+	echo -e "$fbperson\n\npsrun -$profgran $explen" > fbperson.f
 }

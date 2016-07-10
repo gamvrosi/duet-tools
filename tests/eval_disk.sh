@@ -51,7 +51,7 @@ run_one () {
 		echo -ne "Done.\n" | tee -a $logpath
 	fi
 
-	dargs="-d 300000"
+	dargs="-d 300"
 	if [ $evtbased -eq 1 ]; then
 		dargs="$dargs -e"
 	fi
@@ -107,7 +107,7 @@ run_experiments () {
 	# Start filebench and count times we've seen "Running..." sequence
 	running=0
 	echo -e "- Starting filebench... " | tee -a $logpath
-	sudo filebench -f $fbprof 2>&1 | grep --line-buffered "Running..." | \
+	sudo filebench -f ./fbperson.f 2>&1 | grep --line-buffered "IO Summary" | \
 	while read; do
 		if [ $running -le $warmup_periods ]; then
 			running=$((running+1))
@@ -189,6 +189,6 @@ run_experiments
 echo -e "\n=== Evaluation complete (results in ${outdir}) ===" | tee -a $logpath
 
 # Cleanup temporary files and unmount fs
-rm $fbprof fbperson.f
+rm fbperson.f
 echo "- Unmounting ext4 filesystem on $fspath..." | tee -a $logpath
 sudo umount $fspath
