@@ -55,7 +55,9 @@ while getopts ":dckgmtKMTu" opt; do
 		touch .scmversion
 		make localmodconfig || die
 
-		cat .config | sed 's/# CONFIG_DUET is not set/CONFIG_DUET=y/g' > .config-new
+		cat .config | sed 's/# CONFIG_DUET is not set/CONFIG_DUET=y/g' | \
+				sed 's/CONFIG_X86_X32=y/CONFIG_X86_X32=n/g' | \
+				sed 's/CONFIG_CC_STACKPROTECTOR_STRONG=y/CONFIG_CC_STACKPROTECTOR_STRONG=n/g' > .config-new
 		mv .config-new .config
 		exit 0
 		;;

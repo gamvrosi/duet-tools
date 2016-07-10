@@ -121,16 +121,24 @@ have an existing KVM server, skip to step 3.
    sudo apt install nfs-common
    ```
 
+   Create mount point. For gdb to work properly, you need to compile the duet
+   module under the same path as seen at the host. In our example, this is
+   ```/media/data/duet/duet-module```, so we will create a mount point to
+   expose the duet data under ```/media/data/duet```:
+
+   ```bash
+   sudo mkdir -p /media/data/duet
+   ```
+
    Update ```/etc/fstab```. Assuming your host's virbr0 IP is ```192.168.122.1```, do:
 
    ```
-   192.168.122.1:/duet		/media/duet	nfs	auto	0	0
+   192.168.122.1:/duet		/media/data/duet	nfs	auto	0	0
    ```
 
-   Create mount point and mount export:
+   Mount exported paths:
 
    ```bash
-   sudo mkdir /media/duet
    sudo mount -a
    ```
 
@@ -162,32 +170,37 @@ have an existing KVM server, skip to step 3.
     ./setup.sh -K
     ```
 
-11. (*Optional*) Create a ```~/.gdbinit``` file at the host, containing:
+11. Some distributions may restrict auto-loading of gdb scripts to known safe
+    directories. To remedy this, create a ```~/.gdbinit``` file at the host, and
+    add:
 
     ```
-    set auto-load safe-path /
+    add-auto-load-safe-path /media/data/duet
     ```
 
-    This will override gdb's security protection and allow ```vmlinux-gdb.py``` to
-    execute. Or add something more responsible, like:
+    This will override gdb's security protection and allow ```vmlinux-gdb.py```
+    to execute.
+
+12. Compile, install, and load module on guest
 
     ```
-    add-auto-load-safe-path /media/data/duet/duet-kernel/scripts/gdb/vmlinux-gdb.py
+    $ ./setup.sh -m && ./setup.sh -M
     ```
 
-12. Start gdb on host
+13. Start gdb on host
 
     ```
     $ cd /media/data/duet/duet-kernel
     $ gdb vmlinux
     (gdb) target remote :1234
+    (gdb) lx-symbols /media/data/duet/duet-module
+	(gdb) c
     ```
 
-13. Compile, install, and load module on guest
-
-    ```
-    $ ./setup.sh -m && ./setup.sh -M
-    ```
+    Note: it's important to load the module at the guest before loading the
+    symbols at the host. Otherwise lx-symbols is going to cause a SIGSEGV at
+    `do_init_module+0x1`. Once lx-symbols is done, you can unload and reload
+	the module as you wish.
 
 14. Compile, install, and load tools on guest
 
