@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Regression testing for Duet: must run as root!
+# Regression testing for Duet
 #
 
 usage() {
@@ -98,7 +98,10 @@ echo "########################################"
 echo "## Regression testing for Duet module ##"
 echo -e "########################################\n"
 
-# TODO: Check that we are running as root!
+if [[ "`whoami`" != "root" ]]; then
+	echo -e "Error: script must be run as root"
+	die
+fi
 
 while getopts ":besdra" opt; do
 	case $opt in

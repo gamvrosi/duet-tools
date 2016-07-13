@@ -32,8 +32,8 @@ fbfile="$outdir/fbperson.f"
 # TODO: Clean this mess up
 explen=8000
 dummylen=10 #300
-cpugran=1 #5000
-cpulen=10 #300000
+cpugran=1000 #5000
+cpulen=10000 #300000
 profgran=2 #20
 warmup_periods=6 # periods of $profgran seconds each
 source build_wkld.sh
@@ -134,15 +134,15 @@ run_experiments () {
 				run_one 2 $ffreq 0 "s$ffreq"
 			done
 
-#			echo -e "  >> Duet event-based" | tee -a $logpath
-#			echo -e "# Results when event-based Duet is on" | tee -a $rfpath
-#			run_one 1 0 1 "e0"
+			echo -e "  >> Duet event-based" | tee -a $logpath
+			echo -e "# Results when event-based Duet is on" | tee -a $rfpath
+			run_one 1 0 1 "e0"
 
-#			for ffreq in ${fetchfreq[@]}; do
-#				echo -e "  >> Duet event-based, fetch every ${ffreq}ms" | tee -a $logpath
-#				echo -e "# Results when event-based Duet is fetching every ${ffreq}ms" | tee -a $rfpath
-#				run_one 2 $ffreq 1 "e$ffreq"
-#			done
+			for ffreq in ${fetchfreq[@]}; do
+				echo -e "  >> Duet event-based, fetch every ${ffreq}ms" | tee -a $logpath
+				echo -e "# Results when event-based Duet is fetching every ${ffreq}ms" | tee -a $rfpath
+				run_one 2 $ffreq 1 "e$ffreq"
+			done
 		elif [ $running -gt $warmup_periods ]; then
 			break
 		fi
