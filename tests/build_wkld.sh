@@ -193,5 +193,5 @@ echo  \"File-server Version 3.0 personality successfully loaded\""
 		;;
 	esac
 
-	echo -e "$fbperson\n\npsrun -$profgran $explen" > fbperson.f
+	echo -e "$fbperson\n\npsrun -$profgran $explen" > $fbfile
 }

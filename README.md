@@ -215,6 +215,9 @@ have an existing KVM server, skip to step 3.
  * On Ubuntu you can change hostname by editing ```/etc/hostname```,
    ```/etc/hosts```, and running ```sudo service hostname restart```.
  * The dummy task is your friend in understanding how the Duet API works.
+ * Running Duet 4.6 on Ubuntu 16.04 with less than 512MB of RAM leads to page
+   allocation failures, likely attributed to the kernel's high watermark for
+   free/clean pages
 
 ### [Examples](https://www.kernel.org/doc/Documentation/gdb-kernel-debugging.txt) of using the Linux-provided gdb helpers
 

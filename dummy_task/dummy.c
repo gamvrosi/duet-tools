@@ -186,7 +186,8 @@ int main(int argc, char *argv[])
 		}
 
 		if (!keep_running) {
-			fprintf(stdout, "nanoslept, duration left %d\n", duration);
+			if (duration % 1000 == 0)
+				fprintf(stdout, "Time left: %dsec\n", duration / 1000);
 			duration -= freq;
 		}
 

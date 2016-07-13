@@ -10,10 +10,8 @@
 # Set up environment variables
 cd "$(dirname "$0")"
 basedir="$(pwd)"
+outdir="/media/duet"
 fspath="/media/fbench"
-outdir="$basedir/results/"
-cgout="$basedir/cgrabber.out"
-fbprof="$basedir/filebench.prof"
 
 # Program paths
 dummyp="$basedir/../dummy_task/dummy"
@@ -26,10 +24,16 @@ fetchfreq=(0 10 20 40)
 # Set up argument variables
 fspart="$1"
 fssize="`sudo fdisk -l $fspart | head -1 | awk '{print $5}'`"
+resdir="$outdir/results/"
+cgout="$outdir/cgrabber.out"
+fbfile="$outdir/fbperson.f"
 
 # build_wkld.sh variables, no need to touch
 explen=8000
-profgran=20
+dummylen=4 #XXX:300
+cpugran=1000 #XXX: 5000
+cpulen=4000 #XXX: 300000
+profgran=2 #XXX: 20
 warmup_periods=6 # periods of $profgran seconds each
 source build_wkld.sh
 
@@ -51,7 +55,7 @@ run_one () {
 		echo -ne "Done.\n" | tee -a $logpath
 	fi
 
-	dargs="-d 300"
+	dargs="-d $dummylen"
 	if [ $evtbased -eq 1 ]; then
 		dargs="$dargs -e"
 	fi
@@ -64,7 +68,7 @@ run_one () {
 
 	for expiter in $(seq 1 $numreps); do
 		# Start the cpugrabber before we start the microbenchmark
-		sudo $cpugrabberp -r 5000 -t 300000 2> $cgout &
+		sudo $cpugrabberp -r $cpugran -t $cpulen 2> $cgout &
 		cgid=$!
 
 		# Start dummy task, and wait until it's done
@@ -107,11 +111,14 @@ run_experiments () {
 	# Start filebench and count times we've seen "Running..." sequence
 	running=0
 	echo -e "- Starting filebench... " | tee -a $logpath
-	sudo filebench -f ./fbperson.f 2>&1 | grep --line-buffered "IO Summary" | \
+	sudo filebench -f $fbfile 2>&1 | tee -a /dev/tty | \
+	grep --line-buffered "IO Summary" | \
 	while read; do
-		if [ $running -le $warmup_periods ]; then
+		if [ $running -lt $warmup_periods ]; then
 			running=$((running+1))
-		elif [ $running -gt $warmup_periods ]; then
+		elif [ $running -eq $warmup_periods ]; then
+			running=$((running+1))
+
 			echo -e "- Running microbenchmarks..." | tee -a $logpath
 			echo -e "  >> Duet off" | tee -a $logpath
 			echo -e "# Results when Duet is off" | tee -a $rfpath
@@ -136,15 +143,17 @@ run_experiments () {
 				echo -e "# Results when event-based Duet is fetching every ${ffreq}ms" | tee -a $rfpath
 				run_one 2 $ffreq 1 "e$ffreq"
 			done
-
-			# If we got here, we're done. Filebench must die.
-			fbpid="`ps aux | grep "sudo filebench" | grep -v grep \
-				| awk '{print $2}'`"
-			if [[ ! -z $fbpid  ]]; then
-				kill -INT $fbpid
-			fi
+		elif [ $running -gt $warmup_periods ]; then
+			break
 		fi
 	done
+
+	# If we got here, we're done. Filebench must die.
+	fbpid="`ps aux | grep "sudo filebench" | grep -v grep \
+			| awk '{print $2}'`"
+	if [[ ! -z $fbpid  ]]; then
+		kill -INT $fbpid
+	fi
 
 	# Keep syslog output in $output.log
 	echo "- Appending syslog to $outpfx.syslog" | tee -a $logpath
@@ -164,11 +173,11 @@ case $workload in
 esac
 
 datstr="$(date +%y%m%d-%H%M)"		# Date string
-outpfx="$outdir${wkld}_${datstr}"	# Output file prefix
+outpfx="$resdir${wkld}_${datstr}"	# Output file prefix
 
 logpath="${outpfx}.log"				# Log file path
 rfpath="${outpfx}.R"				# R file path
-mkdir -p $outdir
+mkdir -p $resdir
 echo "" > $logpath
 echo "" > $rfpath
 
@@ -186,9 +195,9 @@ sudo sh -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
 echo -e "\n=== Starting experiments ===" | tee -a $logpath
 run_experiments
-echo -e "\n=== Evaluation complete (results in ${outdir}) ===" | tee -a $logpath
+echo -e "\n=== Evaluation complete (results in ${resdir}) ===" | tee -a $logpath
 
 # Cleanup temporary files and unmount fs
-rm fbperson.f
+rm $fbfile
 echo "- Unmounting ext4 filesystem on $fspath..." | tee -a $logpath
 sudo umount $fspath
