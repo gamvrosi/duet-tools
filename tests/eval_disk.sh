@@ -29,11 +29,12 @@ cgout="$outdir/cgrabber.out"
 fbfile="$outdir/fbperson.f"
 
 # build_wkld.sh variables, no need to touch
+# TODO: Clean this mess up
 explen=8000
-dummylen=4 #XXX:300
-cpugran=1000 #XXX: 5000
-cpulen=4000 #XXX: 300000
-profgran=2 #XXX: 20
+dummylen=10 #300
+cpugran=1 #5000
+cpulen=10 #300000
+profgran=2 #20
 warmup_periods=6 # periods of $profgran seconds each
 source build_wkld.sh
 
@@ -68,7 +69,7 @@ run_one () {
 
 	for expiter in $(seq 1 $numreps); do
 		# Start the cpugrabber before we start the microbenchmark
-		sudo $cpugrabberp -r $cpugran -t $cpulen 2> $cgout &
+		sudo $cgrabp -r $cpugran -t $cpulen 2> $cgout &
 		cgid=$!
 
 		# Start dummy task, and wait until it's done
@@ -77,9 +78,9 @@ run_one () {
 
 		# Log cpugrabber results
 		if [ $expiter -eq 1 ]; then
-			cgresults="`sudo $psgrabberp dummy $cgout`"
+			cgresults="`sudo $pgrabp dummy $cgout`"
 		else
-			cgresults="$cgresults, `sudo $psgrabberp dummy $cgout`"
+			cgresults="$cgresults, `sudo $pgrabp dummy $cgout`"
 		fi
 	done
 
@@ -111,8 +112,7 @@ run_experiments () {
 	# Start filebench and count times we've seen "Running..." sequence
 	running=0
 	echo -e "- Starting filebench... " | tee -a $logpath
-	sudo filebench -f $fbfile 2>&1 | tee -a /dev/tty | \
-	grep --line-buffered "IO Summary" | \
+	sudo filebench -f $fbfile 2>&1 | grep --line-buffered "IO Summary" | \
 	while read; do
 		if [ $running -lt $warmup_periods ]; then
 			running=$((running+1))
@@ -134,26 +134,22 @@ run_experiments () {
 				run_one 2 $ffreq 0 "s$ffreq"
 			done
 
-			echo -e "  >> Duet event-based" | tee -a $logpath
-			echo -e "# Results when event-based Duet is on" | tee -a $rfpath
-			run_one 1 0 1 "e0"
+#			echo -e "  >> Duet event-based" | tee -a $logpath
+#			echo -e "# Results when event-based Duet is on" | tee -a $rfpath
+#			run_one 1 0 1 "e0"
 
-			for ffreq in ${fetchfreq[@]}; do
-				echo -e "  >> Duet event-based, fetch every ${ffreq}ms" | tee -a $logpath
-				echo -e "# Results when event-based Duet is fetching every ${ffreq}ms" | tee -a $rfpath
-				run_one 2 $ffreq 1 "e$ffreq"
-			done
+#			for ffreq in ${fetchfreq[@]}; do
+#				echo -e "  >> Duet event-based, fetch every ${ffreq}ms" | tee -a $logpath
+#				echo -e "# Results when event-based Duet is fetching every ${ffreq}ms" | tee -a $rfpath
+#				run_one 2 $ffreq 1 "e$ffreq"
+#			done
 		elif [ $running -gt $warmup_periods ]; then
 			break
 		fi
 	done
 
 	# If we got here, we're done. Filebench must die.
-	fbpid="`ps aux | grep "sudo filebench" | grep -v grep \
-			| awk '{print $2}'`"
-	if [[ ! -z $fbpid  ]]; then
-		kill -INT $fbpid
-	fi
+	killall filebench
 
 	# Keep syslog output in $output.log
 	echo "- Appending syslog to $outpfx.syslog" | tee -a $logpath

@@ -90,13 +90,15 @@ test_disk() {
 }
 
 test_ram() {
-	# TODO
+	# TODO: Run the filebench workload on a RAMdisk
 	die
 }
 
 echo "########################################"
 echo "## Regression testing for Duet module ##"
 echo -e "########################################\n"
+
+# TODO: Check that we are running as root!
 
 while getopts ":besdra" opt; do
 	case $opt in
