@@ -199,8 +199,7 @@ void help_ambiguous_token(const char *arg, const struct cmd_group *grp)
 	exit(1);
 }
 
-void help_command_group(const struct cmd_group *grp, int fd, int argc,
-	char **argv)
+void help_command_group(const struct cmd_group *grp, int argc, char **argv)
 {
 	int full = 0;
 

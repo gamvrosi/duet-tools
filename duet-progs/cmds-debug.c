@@ -16,7 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include "ioctl.h"
+#include "syscall.h"
 #include "commands.h"
 
 static const char * const debug_cmd_group_usage[] = {
@@ -24,24 +24,36 @@ static const char * const debug_cmd_group_usage[] = {
 	NULL
 };
 
-static const char * const cmd_debug_printbit_usage[] = {
-	"duet debug printbit [-i taskid]",
+static const char * const cmd_debug_print_bmap_usage[] = {
+	"duet debug bmap [-f fd]",
 	"Prints the BitTree for a task.",
 	"Instructs the framework to print the BitTree for the given task.",
 	"",
-	"-i     the id of the task",
+	"-f     the fd of the task",
 	NULL
 };
 
-static const char * const cmd_debug_printitm_usage[] = {
-	"duet debug printitm [-i taskid]",
+static const char * const cmd_debug_print_item_usage[] = {
+	"duet debug item [-f fd]",
 	"Prints the ItemTree for a task.",
 	"Instructs the framework to print the ItemTree for the given task.",
 	"",
-	"-i     the id of the task",
+	"-f     the fd of the task",
 	NULL
 };
 
+static const char * const cmd_debug_print_list_usage[] = {
+	"duet debug list [-n num]",
+	"List tasks registered with the duet framework.",
+	"Requests and prints a list of all the tasks that are currently",
+	"registered with the duet framework. For each task, we print the",
+	"information maintained by the framework.",
+	"",
+	"-n	number of tasks to get (default: 32)",
+	NULL
+};
+
+#if 0
 static const char * const cmd_debug_getpath_usage[] = {
 	"duet debug getpath [tid] [child uuid]",
 	"Check that [child uuid] falls under the namespace subtree the task has",
@@ -51,85 +63,122 @@ static const char * const cmd_debug_getpath_usage[] = {
 	"",
 	NULL
 };
+#endif /* 0 */
 
-static int cmd_debug_printbit(int fd, int argc, char **argv)
+static int cmd_debug_print_bmap(int argc, char **argv)
 {
 	int c, ret=0;
-	struct duet_ioctl_cmd_args args;
+	struct duet_status_args args;
 
 	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_PRINTBIT;
+	args.size = sizeof(args);
 
 	optind = 1;
-	while ((c = getopt(argc, argv, "i:")) != -1) {
+	while ((c = getopt(argc, argv, "f:")) != -1) {
 		switch (c) {
-		case 'i':
+		case 'f':
 			errno = 0;
-			args.tid = (__u8)strtol(optarg, NULL, 10);
+			args.fd = (__u8)strtol(optarg, NULL, 10);
 			if (errno) {
 				perror("strtol: invalid ID");
-				usage(cmd_debug_printbit_usage);
+				usage(cmd_debug_print_bmap_usage);
 			}
 			break;
 		default:
 			fprintf(stderr, "Unknown option %c\n", (char)c);
-			usage(cmd_debug_printbit_usage);
+			usage(cmd_debug_print_bmap_usage);
 		}
 	}
 
-	if (!args.tid || argc != optind)
-		usage(cmd_debug_printbit_usage);
+	if (!args.fd || argc != optind)
+		usage(cmd_debug_print_bmap_usage);
 
-	ret = ioctl(fd, DUET_IOC_CMD, &args);
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_PRINT_BMAP, &args);
 	if (ret < 0) {
-		perror("debug printrbt ioctl error");
-		usage(cmd_debug_printbit_usage);
+		perror("duet debug: bitmap printing failed");
+		usage(cmd_debug_print_bmap_usage);
 	}
 
-	fprintf(stdout, "Check dmesg for the BitTree of task #%d.\n",
-		args.tid);
+	fprintf(stdout, "Check dmesg for the BitTree of task %d.\n",
+		args.fd);
 	return ret;
 }
 
-static int cmd_debug_printitm(int fd, int argc, char **argv)
+static int cmd_debug_print_item(int argc, char **argv)
 {
 	int c, ret=0;
-	struct duet_ioctl_cmd_args args;
+	struct duet_status_args args;
 
 	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_PRINTITEM;
+	args.size = sizeof(args);
 
 	optind = 1;
-	while ((c = getopt(argc, argv, "i:")) != -1) {
+	while ((c = getopt(argc, argv, "f:")) != -1) {
 		switch (c) {
-		case 'i':
+		case 'f':
 			errno = 0;
-			args.tid = (__u8)strtol(optarg, NULL, 10);
+			args.fd = (__u8)strtol(optarg, NULL, 10);
 			if (errno) {
 				perror("strtol: invalid ID");
-				usage(cmd_debug_printbit_usage);
+				usage(cmd_debug_print_item_usage);
 			}
 			break;
 		default:
 			fprintf(stderr, "Unknown option %c\n", (char)c);
-			usage(cmd_debug_printbit_usage);
+			usage(cmd_debug_print_item_usage);
 		}
 	}
 
-	if (!args.tid || argc != optind)
-		usage(cmd_debug_printbit_usage);
+	if (!args.fd || argc != optind)
+		usage(cmd_debug_print_item_usage);
 
-	ret = ioctl(fd, DUET_IOC_CMD, &args);
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_PRINT_ITEM, &args);
 	if (ret < 0) {
-		perror("debug printrbt ioctl error");
-		usage(cmd_debug_printbit_usage);
+		perror("duet debug: item printing failed");
+		usage(cmd_debug_print_item_usage);
 	}
 
-	fprintf(stdout, "Check dmesg for the ItemTree of task #%d.\n",
-		args.tid);
+	fprintf(stdout, "Check dmesg for the ItemTree of task %d.\n",
+		args.fd);
 	return ret;
 }
 
+static int cmd_debug_print_list(int argc, char **argv)
+{
+	int c, numtasks = 32, ret = 0;
+
+	optind = 1;
+	while ((c = getopt(argc, argv, "n:")) != -1) {
+		switch (c) {
+		case 'n':
+			errno = 0;
+			numtasks = (int)strtol(optarg, NULL, 10);
+			if (errno) {
+				perror("strtol: invalid task number");
+				usage(cmd_debug_print_list_usage);
+			}
+			break;
+		default:
+			fprintf(stderr, "Unknown option %c\n", (char)c);
+			usage(cmd_debug_print_list_usage);
+		}
+	}
+
+	if (numtasks <= 0 || numtasks > 65535 || argc != optind)
+		usage(cmd_debug_print_list_usage);
+
+	ret = duet_print_list(numtasks);
+	if (ret < 0) {
+		perror("duet debug: list printing failed");
+		usage(cmd_debug_print_list_usage);
+	}
+
+	return ret;
+}
+
+#if 0
 static int cmd_debug_getpath(int fd, int argc, char **argv)
 {
 	int ret=0;
@@ -167,16 +216,18 @@ static int cmd_debug_getpath(int fd, int argc, char **argv)
 		args.cpath[0] == '\0' ? "" : args.cpath);
 	return ret;
 }
+#endif /* 0 */
 
 const struct cmd_group debug_cmd_group = {
 	debug_cmd_group_usage, NULL, {
-		{ "printbit", cmd_debug_printbit, cmd_debug_printbit_usage, NULL, 0 },
-		{ "printitm", cmd_debug_printitm, cmd_debug_printitm_usage, NULL, 0 },
-		{ "getpath", cmd_debug_getpath, cmd_debug_getpath_usage, NULL, 0 },
+		{ "bmap", cmd_debug_print_bmap, cmd_debug_print_bmap_usage, NULL, 0 },
+		{ "item", cmd_debug_print_item, cmd_debug_print_item_usage, NULL, 0 },
+		{ "list", cmd_debug_print_list, cmd_debug_print_list_usage, NULL, 0 },
+		//{ "getpath", cmd_debug_getpath, cmd_debug_getpath_usage, NULL, 0 },
 	}
 };
 
-int cmd_debug(int fd, int argc, char **argv)
+int cmd_debug(int argc, char **argv)
 {
-	return handle_command_group(&debug_cmd_group, fd, argc, argv);
+	return handle_command_group(&debug_cmd_group, argc, argv);
 }

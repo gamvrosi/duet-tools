@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#if 0
 #include <stdio.h>
 #include <stdlib.h>
 #include "duet.h"
@@ -330,3 +331,4 @@ void itree_teardown(struct inode_tree *itree)
 		free(itnode);
 	}
 }
+#endif /* 0 */

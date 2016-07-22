@@ -104,7 +104,7 @@ parse_command_token(const char *arg, const struct cmd_group *grp)
 }
 
 static void handle_help_options_next_level(const struct cmd_struct *cmd,
-		int fd, int argc, char **argv)
+		int argc, char **argv)
 {
 	if (argc < 2)
 		return;
@@ -113,7 +113,7 @@ static void handle_help_options_next_level(const struct cmd_struct *cmd,
 		if (cmd->next) {
 			argc--;
 			argv++;
-			help_command_group(cmd->next, fd, argc, argv);
+			help_command_group(cmd->next, argc, argv);
 		} else {
 			usage_command(cmd, 1, 0);
 		}
@@ -130,8 +130,7 @@ static void fixup_argv0(char **argv, const char *token)
 	argv[0] = argv0_buf;
 }
 
-int handle_command_group(const struct cmd_group *grp, int fd, int argc,
-			 char **argv)
+int handle_command_group(const struct cmd_group *grp, int argc, char **argv)
 
 {
 	const struct cmd_struct *cmd;
@@ -145,10 +144,10 @@ int handle_command_group(const struct cmd_group *grp, int fd, int argc,
 
 	cmd = parse_command_token(argv[0], grp);
 
-	handle_help_options_next_level(cmd, fd, argc, argv);
+	handle_help_options_next_level(cmd, argc, argv);
 
 	fixup_argv0(argv, cmd->token);
-	return cmd->fn(fd, argc, argv);
+	return cmd->fn(argc, argv);
 }
 
 int check_argc_exact(int nargs, int expected)
@@ -171,9 +170,9 @@ static const char * const cmd_help_usage[] = {
 	NULL
 };
 
-static int cmd_help(int fd, int argc, char **argv)
+static int cmd_help(int argc, char **argv)
 {
-	help_command_group(&duet_cmd_group, fd, argc, argv);
+	help_command_group(&duet_cmd_group, argc, argv);
 	return 0;
 }
 
@@ -183,7 +182,7 @@ static const char * const cmd_version_usage[] = {
 	NULL
 };
 
-static int cmd_version(int fd, int argc, char **argv)
+static int cmd_version(int argc, char **argv)
 {
 	printf("%s\n", DUET_BUILD_VERSION);
 	return 0;
@@ -219,8 +218,8 @@ static int handle_options(int *argc, char ***argv)
 static const struct cmd_group duet_cmd_group = {
 	duet_cmd_group_usage, duet_cmd_group_info, {
 		{ "status", cmd_status, NULL, &status_cmd_group, 0 },
-		{ "task", cmd_task, NULL, &task_cmd_group, 0 },
 		{ "debug", cmd_debug, NULL, &debug_cmd_group, 0 },
+		//{ "task", cmd_task, NULL, &task_cmd_group, 0 },
 		{ "help", cmd_help, cmd_help_usage, NULL, 0 },
 		{ "version", cmd_version, cmd_version_usage, NULL, 0 },
 		NULL_CMD_STRUCT
@@ -229,15 +228,8 @@ static const struct cmd_group duet_cmd_group = {
 
 int main(int argc, char **argv)
 {
-	int ret, fd;
+	int ret;
 	const struct cmd_struct *cmd;
-
-	/* Open the duet device */
-	fd = open_duet_dev();
-	if (fd == -1) {
-		fprintf(stderr, "Error: failed to open duet device\n");
-		return -1;
-	}
 
 	/* Skip the duet name */
 	argc--;
@@ -253,11 +245,10 @@ int main(int argc, char **argv)
 	}
 
 	cmd = parse_command_token(argv[0], &duet_cmd_group);
-	handle_help_options_next_level(cmd, fd, argc, argv);
+	handle_help_options_next_level(cmd, argc, argv);
 
 	fixup_argv0(argv, cmd->token);
-	ret = cmd->fn(fd, argc, argv);
+	ret = cmd->fn(argc, argv);
 
-	close_duet_dev(fd);
 	exit(ret);
 }

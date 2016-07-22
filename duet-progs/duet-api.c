@@ -23,45 +23,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "ioctl.h"
+#include "syscall.h"
 
-#define DUET_DEV_NAME   "/dev/duet"
-
-int open_duet_dev(void)
-{
-	int ret;
-	struct stat st;
-	int duet_fd = -1;
-
-	ret = stat(DUET_DEV_NAME, &st);
-	if (ret < 0) {
-		ret = system("modprobe duet");
-		if (ret == -1)
-			return -1;
-
-		ret = stat(DUET_DEV_NAME, &st);
-		if (ret < 0)
-			return -1;
-	}
-
-	if (S_ISCHR(st.st_mode))
-		duet_fd = open(DUET_DEV_NAME, O_RDWR);
-
-	return duet_fd;
-}
-
-void close_duet_dev(int duet_fd)
-{
-	int ret;
-	struct stat st;
-
-	ret = stat(DUET_DEV_NAME, &st);
-	if (ret < 0)
-		return;
-
-	close(duet_fd);
-}
-
+#if 0
 int duet_register(int duet_fd, const char *path, __u32 regmask, __u32 bitrange,
 	const char *name, int *tid)
 {
@@ -271,70 +235,102 @@ int duet_get_path(int duet_fd, int tid, unsigned long long uuid, char *path)
 out:
 	return args.ret || ret;
 }
+#endif /* 0 */
 
-int duet_debug_printbit(int duet_fd, int tid)
+int duet_print_bmap(int fd)
 {
-	int ret=0;
-	struct duet_ioctl_cmd_args args;
+	int ret = 0;
+	struct duet_status_args args;
 
-	if (duet_fd == -1) {
-		fprintf(stderr, "duet: failed to open duet device\n");
-		return -1;
+	if (fd <= 0) {
+		fprintf(stderr, "duet_print_bmap: invalid fd\n");
+		return 1;
 	}
 
 	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_PRINTBIT;
-	args.tid = tid;
+	args.size = sizeof(args);
+	args.fd = fd;
 
-	ret = ioctl(duet_fd, DUET_IOC_CMD, &args);
-	if (ret < 0)
-		perror("duet: printbit ioctl error");
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_PRINT_BMAP, &args);
+	if (ret < 0) {
+		perror("duet_print_bmap: syscall failed");
+		return ret;
+	}
 
-	fprintf(stdout, "Check dmesg for the BitTree of task #%d.\n",
-		args.tid);
+	fprintf(stdout, "Check dmesg for the BitTree of task %d\n", args.fd);
 
 	return ret;
 }
 
-int duet_task_list(int duet_fd, int numtasks)
+int duet_print_item(int fd)
 {
-	int i, ret=0;
-	struct duet_ioctl_list_args *args;
-	size_t args_size;
+	int ret = 0;
+	struct duet_status_args args;
 
-	if (numtasks <= 0 || numtasks > 255) {
-		fprintf(stderr, "duet: invalid number of tasks\n");
+	if (fd <= 0) {
+		fprintf(stderr, "duet_print_item: invalid fd\n");
 		return 1;
 	}
 
-	args_size = sizeof(struct duet_ioctl_list_args) +
-			(numtasks * sizeof(struct duet_task_attrs));
+	memset(&args, 0, sizeof(args));
+	args.size = sizeof(args);
+	args.fd = fd;
+
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_PRINT_ITEM, &args);
+	if (ret < 0) {
+		perror("duet_print_item: syscall failed");
+		return ret;
+	}
+
+	fprintf(stdout, "check dmesg for the ItemTree of task %d\n", args.fd);
+
+	return ret;
+}
+
+int duet_print_list(int numtasks)
+{
+	int i, ret = 0;
+	struct duet_status_args *args;
+	size_t args_size;
+
+	if (numtasks <= 0 || numtasks > 65535) {
+		fprintf(stderr, "duet_print_list: invalid number of tasks\n");
+		return 1;
+	}
+
+	args_size = sizeof(struct duet_status_args) + (numtasks *
+		    sizeof(struct duet_task_attrs));
 	args = malloc(args_size);
 	if (!args) {
-		perror("duet: task list args allocation failed");
+		perror("duet_print_list: task list allocation failed");
 		return 1;
 	}
 
 	memset(args, 0, args_size);
+	args->size = sizeof(*args);
 	args->numtasks = numtasks;
-	ret = ioctl(duet_fd, DUET_IOC_TLIST, args);
+
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_PRINT_LIST, args);
 	if (ret < 0) {
-		perror("duet: task list ioctl failed");
+		perror("duet_print_list: syscall failed");
 		goto out;
 	}
 
 	/* Print out the list we received */
 	fprintf(stdout,
-		"ID\tTask Name           \tFile task?\tBit range\tEvt. mask\n"
-		"--\t--------------------\t----------\t---------\t---------\n");
-	for (i=0; i<args->numtasks; i++) {
-		if (!args->tasks[i].tid)
+		"fd   \tTask Name           \tFile task?\tReg. mask\tReg. path\n"
+		"-----\t--------------------\t----------\t---------\t---------\n");
+	for (i = 0; i < args->numtasks; i++) {
+		if (!args->tasks[i].fd)
 			break;
 
-		fprintf(stdout, "%2d\t%20s\t%10s\t%9u\t%8x\n",
-			args->tasks[i].tid, args->tasks[i].tname,
+		fprintf(stdout, "%5d\t%20s\t%10s\t%9x\t%s\n",
+			args->tasks[i].fd, args->tasks[i].name,
 			args->tasks[i].is_file ? "TRUE" : "FALSE",
-			args->tasks[i].bitrange, args->tasks[i].evtmask);
+			args->tasks[i].regmask, args->tasks[i].path);
 	}
 
 out:

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 George Amvrosiadis.  All rights reserved.
+ * Copyright (C) 2014 George Amvrosiadis.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -16,7 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include "ioctl.h"
+#include "syscall.h"
 #include "commands.h"
 
 static const char * const status_cmd_group_usage[] = {
@@ -26,7 +26,7 @@ static const char * const status_cmd_group_usage[] = {
 
 static const char * const cmd_status_start_usage[] = {
 	"duet status start [-n tasks]",
-	"Enable the duet framework.",
+	"Enable the Duet framework.",
 	"Initializes and enables the duet framework. Only tasks registered",
 	"after running this command will be monitored by the framework.",
 	"Ensure the framework is off, otherwise this command will fail.",
@@ -37,7 +37,7 @@ static const char * const cmd_status_start_usage[] = {
 
 static const char * const cmd_status_stop_usage[] = {
 	"duet status stop",
-	"Disable the duet framework.",
+	"Disable the Duet framework.",
 	"Terminates and cleans up any metadata kept by the duet framework.",
 	"Any tasks running will no longer be monitored by the framework,",
 	"but will continue to function. Ensure the framework is on,",
@@ -45,20 +45,27 @@ static const char * const cmd_status_stop_usage[] = {
 	NULL
 };
 
-static int cmd_status_start(int fd, int argc, char **argv)
+static const char * const cmd_status_report_usage[] = {
+	"duet status report",
+	"Report on the status of the Duet framework.",
+	"Reports whether the Duet framework is online or offline.",
+	NULL
+};
+
+static int cmd_status_start(int argc, char **argv)
 {
 	int c, ret = 0;
-	struct duet_ioctl_cmd_args args;
+	struct duet_status_args args;
 
 	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_START;
+	args.size = sizeof(args);
 
 	optind = 1;
 	while ((c = getopt(argc, argv, "n:")) != -1) {
 		switch (c) {
 		case 'n':
 			errno = 0;
-			args.numtasks = (__u8)strtoul(optarg, NULL, 10);
+			args.maxtasks = (__u8)strtoul(optarg, NULL, 10);
 			if (errno) {
 				perror("strtoul: invalid number of tasks");
 				usage(cmd_status_start_usage);
@@ -73,41 +80,67 @@ static int cmd_status_start(int fd, int argc, char **argv)
 	if (argc != optind)
 		usage(cmd_status_start_usage);
 
-	ret = ioctl(fd, DUET_IOC_CMD, &args);
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_START, &args);
 	if (ret < 0) {
-		perror("status start ioctl error");
+		perror("duet status: start failed");
 		usage(cmd_status_start_usage);
 	}
+
 	return ret;
 }
 
-static int cmd_status_stop(int fd, int argc, char **argv)
+static int cmd_status_stop(int argc, char **argv)
 {
 	int ret = 0;
-	struct duet_ioctl_cmd_args args;
+	struct duet_status_args args;
 
 	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_STOP;
+	args.size = sizeof(args);
 
-	ret = ioctl(fd, DUET_IOC_CMD, &args);
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_STOP, &args);
 	if (ret < 0) {
-		perror("status stop ioctl error");
+		perror("duet status: stop failed");
 		usage(cmd_status_stop_usage);
 	}
 
-	//close_dev(fd);
-	//ret = system("rmmod duet");
 	return ret;
+}
+
+static int cmd_status_report(int argc, char **argv)
+{
+	int ret = 0;
+	struct duet_status_args args;
+
+	memset(&args, 0, sizeof(args));
+	args.size = sizeof(args);
+
+	/* Call syscall x86_64 #329: duet_status */
+	ret = syscall(329, DUET_REPORT, &args);
+	if (ret < 0) {
+		perror("duet status: report failed");
+		usage(cmd_status_report_usage);
+		return ret;
+	}
+
+	if (!ret)
+		fprintf(stdout, "Duet framework status: Offline.\n");
+	else
+		fprintf(stdout, "Duet framework status: Online.\n");
+
+	return 0;
 }
 
 const struct cmd_group status_cmd_group = {
 	status_cmd_group_usage, NULL, {
 		{ "start", cmd_status_start, cmd_status_start_usage, NULL, 0 },
 		{ "stop", cmd_status_stop, cmd_status_stop_usage, NULL, 0 },
+		{ "report", cmd_status_report, cmd_status_report_usage, NULL, 0 },
 	}
 };
 
-int cmd_status(int fd, int argc, char **argv)
+int cmd_status(int argc, char **argv)
 {
-	return handle_command_group(&status_cmd_group, fd, argc, argv);
+	return handle_command_group(&status_cmd_group, argc, argv);
 }

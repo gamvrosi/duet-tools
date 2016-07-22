@@ -16,15 +16,17 @@
  * Boston, MA 021110-1307, USA.
  */
 
+/* TODO: Clean up */
+
 #ifndef _DUET_H
 #define _DUET_H
 
 #include <asm/types.h>
 #include <stddef.h>
 
-#define DUET_MAX_PATH	1024
-#define DUET_MAX_NAME	22
-#define DUET_MAX_TASKS	128
+#define MAX_NAME	22
+#define MAX_TASKS	128
+#define MAX_PATH	1024
 
 //#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #define container_of(ptr, type, member) ({				\
@@ -100,7 +102,8 @@ int duet_check_done(int duet_fd, int tid, __u64 idx, __u32 count);
 int duet_set_done(int duet_fd, int tid, __u64 idx, __u32 count);
 int duet_unset_done(int duet_fd, int tid, __u64 idx, __u32 count);
 int duet_get_path(int duet_fd, int tid, unsigned long long uuid, char *path);
-int duet_debug_printbit(int duet_fd, int tid);
-int duet_task_list(int duet_fd, int numtasks);
+int duet_print_bmap(int fd);
+int duet_print_item(int fd);
+int duet_print_list(int numtasks);
 
 #endif /* _DUET_H */

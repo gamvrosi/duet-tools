@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # Find location of this setup.sh
 STARTDIR="$(pwd)"
@@ -121,8 +121,8 @@ while getopts ":dckgmtKMTu" opt; do
 		moddir="`ls -l /lib/modules | grep ${KERNEL_VERSION_APPEND} | \
 			awk '{print $9}' | head -1`"
 		sudo make -C /lib/modules/${moddir}/build M=$(pwd) modules_install
-		sudo depmod
-		sudo modprobe duet
+		#sudo depmod
+		#sudo modprobe duet
 
 		echo "Done installing Duet module."
 		exit 0

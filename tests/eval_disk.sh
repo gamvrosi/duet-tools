@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 #
 # Runs filebench alongside Duet microbenchmarks, and dumps raw numbers in an R
 # file. No results are kept for filebench.

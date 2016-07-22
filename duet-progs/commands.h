@@ -21,13 +21,14 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/syscall.h>
 #include "duet.h"
 
 #define ARGV0_BUF_SIZE	64
 
 struct cmd_struct {
 	const char *token;
-	int (*fn)(int, int, char **);
+	int (*fn)(int, char **);
 
 	/*
 	 * Usage strings
@@ -70,8 +71,7 @@ struct cmd_group {
 /* duet.c */
 int prefixcmp(const char *str, const char *prefix);
 int check_argc_exact(int nargs, int expected);
-int handle_command_group(const struct cmd_group *grp, int fd, int argc,
-			 char **argv);
+int handle_command_group(const struct cmd_group *grp, int argc, char **argv);
 
 /* help.c */
 void usage(const char * const *usagestr) __attribute__((noreturn));
@@ -80,7 +80,7 @@ void usage_command_group(const struct cmd_group *grp, int all, int err);
 
 void help_unknown_token(const char *arg, const struct cmd_group *grp) __attribute__((noreturn));
 void help_ambiguous_token(const char *arg, const struct cmd_group *grp) __attribute__((noreturn));
-void help_command_group(const struct cmd_group *grp, int fd, int argc, char **argv);
+void help_command_group(const struct cmd_group *grp, int argc, char **argv);
 
 /* Command groups */
 extern const struct cmd_group status_cmd_group;
@@ -93,6 +93,6 @@ extern const char * const cmd_task_usage[];
 extern const char * const cmd_debug_usage[];
 
 /* Command handlers */
-int cmd_status(int fd, int argc, char **argv);
-int cmd_task(int fd, int argc, char **argv);
-int cmd_debug(int fd, int argc, char **argv);
+int cmd_status(int argc, char **argv);
+int cmd_task(int argc, char **argv);
+int cmd_debug(int argc, char **argv);
