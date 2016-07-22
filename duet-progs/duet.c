@@ -218,8 +218,7 @@ static int handle_options(int *argc, char ***argv)
 static const struct cmd_group duet_cmd_group = {
 	duet_cmd_group_usage, duet_cmd_group_info, {
 		{ "status", cmd_status, NULL, &status_cmd_group, 0 },
-		{ "debug", cmd_debug, NULL, &debug_cmd_group, 0 },
-		//{ "task", cmd_task, NULL, &task_cmd_group, 0 },
+		{ "debug", cmd_debug, cmd_debug_usage, NULL, 0 },
 		{ "help", cmd_help, cmd_help_usage, NULL, 0 },
 		{ "version", cmd_version, cmd_version_usage, NULL, 0 },
 		NULL_CMD_STRUCT

@@ -24,9 +24,7 @@
 #include <asm/types.h>
 #include <stddef.h>
 
-#define MAX_NAME	22
 #define MAX_TASKS	128
-#define MAX_PATH	1024
 
 //#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 #define container_of(ptr, type, member) ({				\
@@ -62,20 +60,6 @@
 #define DUET_PAGE_MODIFIED	0x0010
 #define DUET_PAGE_EXISTS	0x0020
 
-#define DUET_IN_ACCESS		0x0040
-#define DUET_IN_ATTRIB		0x0080
-#define DUET_IN_WCLOSE		0x0100
-#define DUET_IN_RCLOSE		0x0200
-#define DUET_IN_CREATE		0x0400
-#define DUET_IN_DELETE		0x0800
-#define DUET_IN_MODIFY		0x1000
-#define DUET_IN_MOVED		0x2000
-#define DUET_IN_OPEN		0x4000
-
-/* Used only during registration */
-#define DUET_REG_SBLOCK		0x8000
-#define DUET_FILE_TASK		0x10000	/* we register a 32-bit flag due to this */
-
 #define DUET_UUID_INO(uuid)	((unsigned long)(uuid & 0xffffffff))
 #define DUET_UUID_GEN(uuid)	((unsigned long)(uuid >> 32))
 
@@ -94,16 +78,15 @@ struct duet_item {
 int open_duet_dev(void);
 void close_duet_dev(int duet_fd);
 
-int duet_register(int duet_fd, const char *path, __u32 regmask, __u32 bitrange,
-	const char *name, int *tid);
+int duet_register(const char *name, __u32 regmask, const char *path);
 int duet_deregister(int duet_fd, int tid);
 int duet_fetch(int duet_fd, int tid, struct duet_item *items, int *count);
 int duet_check_done(int duet_fd, int tid, __u64 idx, __u32 count);
 int duet_set_done(int duet_fd, int tid, __u64 idx, __u32 count);
 int duet_unset_done(int duet_fd, int tid, __u64 idx, __u32 count);
 int duet_get_path(int duet_fd, int tid, unsigned long long uuid, char *path);
-int duet_print_bmap(int fd);
-int duet_print_item(int fd);
+int duet_print_bmap(int id);
+int duet_print_item(int id);
 int duet_print_list(int numtasks);
 
 #endif /* _DUET_H */

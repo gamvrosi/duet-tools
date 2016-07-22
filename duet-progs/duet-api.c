@@ -25,40 +25,24 @@
 #include <sys/stat.h>
 #include "syscall.h"
 
-#if 0
-int duet_register(int duet_fd, const char *path, __u32 regmask, __u32 bitrange,
-	const char *name, int *tid)
+int duet_register(const char *name, __u32 regmask, const char *path)
 {
 	int ret = 0;
-	struct duet_ioctl_cmd_args args;
 
-	if (duet_fd == -1) {
-		fprintf(stderr, "duet: failed to open duet device\n");
-		return -1;
-	}
-
-	memset(&args, 0, sizeof(args));
-
-	args.cmd_flags = DUET_REGISTER;
-	memcpy(args.name, name, DUET_MAX_NAME);
-	args.bitrange = bitrange;
-	args.regmask = regmask;
-	memcpy(args.path, path, DUET_MAX_PATH);
-
-	ret = ioctl(duet_fd, DUET_IOC_CMD, &args);
+	/* Call syscall x86_64 #330: duet_init */
+	ret = syscall(330, name, regmask, path);
 	if (ret < 0)
-		perror("duet: tasks register ioctl error");
+		perror("duet_register: syscall failed");
 
-	*tid = args.tid;
-
-	if (args.ret)
-		duet_dbg(stdout, "Error registering task (ID %d).\n", args.tid);
+	if (!ret)
+		duet_dbg(stdout, "Error registering task %s.\n", name);
 	else
-		duet_dbg(stdout, "Successfully registered task (ID %d).\n", args.tid);
+		duet_dbg(stdout, "Successfully registered task %s.\n", name);
 
-	return (ret < 0) ? ret : args.ret;
+	return ret;
 }
 
+#if 0
 int duet_deregister(int duet_fd, int tid)
 {
 	int ret = 0;
@@ -237,19 +221,19 @@ out:
 }
 #endif /* 0 */
 
-int duet_print_bmap(int fd)
+int duet_print_bmap(int id)
 {
 	int ret = 0;
 	struct duet_status_args args;
 
-	if (fd <= 0) {
-		fprintf(stderr, "duet_print_bmap: invalid fd\n");
+	if (id <= 0) {
+		fprintf(stderr, "duet_print_bmap: invalid id\n");
 		return 1;
 	}
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
-	args.fd = fd;
+	args.id = id;
 
 	/* Call syscall x86_64 #329: duet_status */
 	ret = syscall(329, DUET_PRINT_BMAP, &args);
@@ -258,24 +242,24 @@ int duet_print_bmap(int fd)
 		return ret;
 	}
 
-	fprintf(stdout, "Check dmesg for the BitTree of task %d\n", args.fd);
+	fprintf(stdout, "Check dmesg for the BitTree of task %d\n", args.id);
 
 	return ret;
 }
 
-int duet_print_item(int fd)
+int duet_print_item(int id)
 {
 	int ret = 0;
 	struct duet_status_args args;
 
-	if (fd <= 0) {
-		fprintf(stderr, "duet_print_item: invalid fd\n");
+	if (id <= 0) {
+		fprintf(stderr, "duet_print_item: invalid id\n");
 		return 1;
 	}
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
-	args.fd = fd;
+	args.id = id;
 
 	/* Call syscall x86_64 #329: duet_status */
 	ret = syscall(329, DUET_PRINT_ITEM, &args);
@@ -284,10 +268,19 @@ int duet_print_item(int fd)
 		return ret;
 	}
 
-	fprintf(stdout, "check dmesg for the ItemTree of task %d\n", args.fd);
+	fprintf(stdout, "check dmesg for the ItemTree of task %d\n", args.id);
 
 	return ret;
 }
+
+#define PRINT_MASK(mask) \
+	fprintf(stdout, "Reg. mask: %s%s%s%s%s%s\n", \
+		((mask & DUET_PAGE_ADDED) ? "ADDED " : ""), \
+		((mask & DUET_PAGE_REMOVED) ? "REMOVED " : ""), \
+		((mask & DUET_PAGE_DIRTY) ? "DIRTY " : ""), \
+		((mask & DUET_PAGE_FLUSHED) ? "FLUSHED " : ""), \
+		((mask & DUET_PAGE_EXISTS) ? "EXISTS " : ""), \
+		((mask & DUET_PAGE_MODIFIED) ? "MODIFIED " : ""))
 
 int duet_print_list(int numtasks)
 {
@@ -320,18 +313,20 @@ int duet_print_list(int numtasks)
 	}
 
 	/* Print out the list we received */
-	fprintf(stdout,
-		"fd   \tTask Name           \tFile task?\tReg. mask\tReg. path\n"
-		"-----\t--------------------\t----------\t---------\t---------\n");
+	fprintf(stdout, "Duet task listing:\n\n");
+
 	for (i = 0; i < args->numtasks; i++) {
-		if (!args->tasks[i].fd)
+		if (!args->tasks[i].id)
 			break;
 
-		fprintf(stdout, "%5d\t%20s\t%10s\t%9x\t%s\n",
-			args->tasks[i].fd, args->tasks[i].name,
-			args->tasks[i].is_file ? "TRUE" : "FALSE",
-			args->tasks[i].regmask, args->tasks[i].path);
+		fprintf(stdout, "Task Id: %d\n", args->tasks[i].id);
+		fprintf(stdout, "Task fd: %d\n", args->tasks[i].fd);
+		fprintf(stdout, "Task name: %s\n", args->tasks[i].name);
+		PRINT_MASK(args->tasks[i].regmask);
+		fprintf(stdout, "Reg. path: %s\n\n", args->tasks[i].path);
 	}
+
+	fprintf(stdout, "Listed %d tasks.\n", i);
 
 out:
 	free(args);

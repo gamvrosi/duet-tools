@@ -17,33 +17,15 @@
  */
 
 #include "commands.h"
+#include "syscall.h"
 
 #if 0
-static const char * const task_cmd_group_usage[] = {
-	"duet task <command> [options]",
-	NULL
-};
-
 static const char * const cmd_task_fetch_usage[] = {
 	"duet task fetch [-i taskid] [-n num]",
 	"Fetched up to num items for task with ID taskid, and prints them.",
 	"",
 	"-i	task ID used to find the task",
 	"-n	number of events (default: 512, max: 65535)",
-	NULL
-};
-
-static const char * const cmd_task_reg_usage[] = {
-	"duet task register [-n name] [-b bitrange] [-m nmodel] [-p path]",
-	"Registers a new task with the currently active framework. The task",
-	"will be assigned an ID, and will be registered under the provided",
-	"name. The bitmaps that keep information on what has been processed",
-	"can be customized to store a given range of numbers per bit.",
-	"",
-	"-n     name under which to register the task",
-	"-b     range of items/bytes per bitmap bit",
-	"-m     event mask for task",
-	"-p     path of the root of the namespace of interest",
 	NULL
 };
 
@@ -90,6 +72,16 @@ static const char * const cmd_task_check_usage[] = {
 	"-i     the id of the task",
 	"-o     the offset denoting the beginning of the range in bytes",
 	"-l     the number of bytes denoting the length of the range",
+	NULL
+};
+
+static const char * const cmd_debug_getpath_usage[] = {
+	"duet debug getpath [tid] [child uuid]",
+	"Check that [child uuid] falls under the namespace subtree the task has",
+	"registered for, which is expected to be dir. The tid is necessary",
+	"to know which task is requesting this mapping, and which superblock",
+	"and namespace we're referring to.",
+	"",
 	NULL
 };
 
@@ -157,68 +149,6 @@ static int cmd_task_fetch(int fd, int argc, char **argv)
 
 out:
 	free(items);
-	return ret;
-}
-
-static int cmd_task_reg(int fd, int argc, char **argv)
-{
-	int c, tid, len=0, ret=0;
-	char path[DUET_MAX_PATH], name[DUET_MAX_NAME];
-	__u32 regmask = 0;
-	__u32 bitrange = 0;
-
-	path[0] = name[0] = 0;
-
-	optind = 1;
-	while ((c = getopt(argc, argv, "n:b:m:p:")) != -1) {
-		switch (c) {
-		case 'n':
-			len = strnlen(optarg, DUET_MAX_NAME);
-			if (len == DUET_MAX_NAME || !len) {
-				fprintf(stderr, "Invalid name (%d)\n", len);
-				usage(cmd_task_reg_usage);
-			}
-
-			memcpy(name, optarg, DUET_MAX_NAME);
-			break;
-		case 'b':
-			errno = 0;
-			bitrange = (__u32)strtoll(optarg, NULL, 10);
-			if (errno) {
-				perror("strtoll: invalid block size");
-				usage(cmd_task_reg_usage);
-			}
-			break;
-		case 'm':
-			errno = 0;
-			regmask = (__u32)strtol(optarg, NULL, 16);
-			if (errno) {
-				perror("strtol: invalid evtmask");
-				usage(cmd_task_reg_usage);
-			}
-			break;
-		case 'p':
-			errno = 0;
-			memcpy(path, optarg, DUET_MAX_PATH);
-			if (errno)
-				perror("memcpy: invalid path");
-			break;
-		default:
-			fprintf(stderr, "Unknown option %c\n", (char)c);
-			usage(cmd_task_reg_usage);
-		}
-	}
-
-	if (!name[0] || argc != optind)
-		usage(cmd_task_reg_usage);
-
-	ret = duet_register(fd, path, regmask, bitrange, name, &tid);
-	if (ret) {
-		fprintf(stdout, "Error registering task '%s'\n", name);
-		usage(cmd_task_reg_usage);
-	}
-
-	fprintf(stdout, "Success registering task '%s' (ID %d)\n", name, tid);
 	return ret;
 }
 
@@ -415,19 +345,41 @@ static int cmd_task_check(int fd, int argc, char **argv)
 	return 0;
 }
 
-const struct cmd_group task_cmd_group = {
-	task_cmd_group_usage, NULL, {
-		{ "register", cmd_task_reg, cmd_task_reg_usage, NULL, 0 },
-		{ "deregister", cmd_task_dereg, cmd_task_dereg_usage, NULL, 0 },
-		{ "mark", cmd_task_mark, cmd_task_mark_usage, NULL, 0 },
-		{ "unmark", cmd_task_unmark, cmd_task_unmark_usage, NULL, 0 },
-		{ "check", cmd_task_check, cmd_task_check_usage, NULL, 0 },
-		{ "fetch", cmd_task_fetch, cmd_task_fetch_usage, NULL, 0 },
-	}
-};
-
-int cmd_task(int fd, int argc, char **argv)
+static int cmd_debug_getpath(int fd, int argc, char **argv)
 {
-	return handle_command_group(&task_cmd_group, fd, argc, argv);
+	int ret=0;
+	struct duet_ioctl_cmd_args args;
+
+	memset(&args, 0, sizeof(args));
+	args.cmd_flags = DUET_GET_PATH;
+
+	if (argc != 3)
+		usage(cmd_debug_getpath_usage);
+
+	/* Pass the inode numbers in */
+	errno = 0;
+	args.tid = (__u8)strtoul(argv[1], NULL, 10);
+	if (errno) {
+		perror("strtol: invalid task ID");
+		usage(cmd_debug_printbit_usage);
+	}
+
+	errno = 0;
+	args.c_uuid = (unsigned long long)strtoull(argv[2], NULL, 16);
+	if (errno) {
+		perror("strtoll: invalid child uuid");
+		usage(cmd_debug_getpath_usage);
+	}
+
+	ret = ioctl(fd, DUET_IOC_CMD, &args);
+	if (ret < 0) {
+		perror("debug isparent ioctl error");
+		usage(cmd_debug_getpath_usage);
+	}
+
+	fprintf(stdout, "%llu is %spart of the namespace (%s)\n", args.c_uuid,
+		args.cpath[0] == '\0' ? "not " : "",
+		args.cpath[0] == '\0' ? "" : args.cpath);
+	return ret;
 }
 #endif /* 0 */

@@ -19,6 +19,7 @@
 #define _DUET_SYSCALL_H
 
 #include <asm/types.h>
+#include <linux/limits.h>
 #include "duet.h"
 
 /* Status syscall args */
@@ -32,11 +33,11 @@ enum duet_status_flags {
 };
 
 struct duet_task_attrs {
+	__u8	id;
 	int 	fd;
-	char 	name[MAX_NAME];
-	__u8	is_file;
-	__u16	regmask;
-	char	path[MAX_PATH];
+	char 	name[NAME_MAX];
+	__u32	regmask;
+	char	path[PATH_MAX];
 };
 
 struct duet_status_args {
@@ -49,7 +50,7 @@ struct duet_status_args {
 
 		/* DUET_PRINT_BIT, DUET_PRINT_ITEM args */
 		struct {
-			int fd;					/* in */
+			__u8 id;				/* in */
 		};
 
 		/* DUET_PRINT_LIST args */
