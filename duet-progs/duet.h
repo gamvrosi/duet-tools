@@ -59,6 +59,7 @@
 #define DUET_PAGE_FLUSHED	0x0008
 #define DUET_PAGE_MODIFIED	0x0010
 #define DUET_PAGE_EXISTS	0x0020
+#define DUET_FD_NONBLOCK	0x0040
 
 #define DUET_UUID_INO(uuid)	((unsigned long)(uuid & 0xffffffff))
 #define DUET_UUID_GEN(uuid)	((unsigned long)(uuid >> 32))

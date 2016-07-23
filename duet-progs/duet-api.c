@@ -43,32 +43,6 @@ int duet_register(const char *name, __u32 regmask, const char *path)
 }
 
 #if 0
-int duet_deregister(int duet_fd, int tid)
-{
-	int ret = 0;
-	struct duet_ioctl_cmd_args args;
-
-	if (duet_fd == -1) {
-		fprintf(stderr, "duet: failed to open duet device\n");
-		return -1;
-	}
-
-	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_DEREGISTER;
-	args.tid = tid;
-
-	ret = ioctl(duet_fd, DUET_IOC_CMD, &args);
-	if (ret < 0)
-		perror("duet: tasks deregister ioctl error");
-
-	if (args.ret)
-		duet_dbg(stdout, "Error deregistering task (ID %d).\n", args.tid);
-	else
-		duet_dbg(stdout, "Successfully deregistered task (ID %d).\n", args.tid);
-
-	return (ret < 0) ? ret : args.ret;
-}
-
 int duet_fetch(int duet_fd, int tid, struct duet_item *items, int *count)
 {
 	int ret = 0;

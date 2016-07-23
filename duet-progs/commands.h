@@ -94,5 +94,4 @@ extern const char * const cmd_debug_usage[];
 
 /* Command handlers */
 int cmd_status(int argc, char **argv);
-int cmd_task(int argc, char **argv);
 int cmd_debug(int argc, char **argv);

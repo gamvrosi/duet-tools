@@ -144,7 +144,7 @@ int dsh_reg(char **argv)
 	errno = 0;
 	regmask = (__u32)strtol(argv[2], NULL, 16);
 	if (errno) {
-		perror("regoster: invalid regmask");
+		perror("register: invalid regmask");
 		return 0;
 	}
 
@@ -156,7 +156,7 @@ int dsh_reg(char **argv)
 	}
 	memcpy(path, argv[3], len);
 
-	ret = duet_register(name, regmask, path);
+	ret = duet_register(name, regmask | DUET_FD_NONBLOCK, path);
 	if (ret <= 0)
 		return 0;
 
@@ -167,37 +167,134 @@ int dsh_reg(char **argv)
 	return 0;
 }
 
-int dsh_dereg(char **args)
+int dsh_dereg(char **argv)
+{
+	int i, fdin;
+
+	if (!argv[1]) {
+		fprintf(stderr, "Error: Invalid deregistration args\n");
+		return 0;
+	}
+
+	/* Copy the fd number */
+	errno = 0;
+	fdin = (int)strtol(argv[1], NULL, 10);
+	if (errno || fdin <= 0) {
+		perror("deregister: invalid file descriptor");
+		return 0;
+	}
+
+	/* Find the fd in the already opened ones */
+	if (!fdnum) {
+		fprintf(stderr, "Error: No registered tasks\n");
+		return 0;
+	}
+
+	for (i = 0; i < fdnum; i++) {
+		if (duet_fds[i] == fdin) {
+			close(fdin);
+
+			fprintf(stdout, "Success deregistered task (fd %d)\n",
+				fdin);
+			fdin = 0;
+			fdnum--;
+
+			/* Fill the hole with the last fd */
+			if (fdnum) {
+				duet_fds[i] = duet_fds[fdnum];
+				duet_fds[fdnum] = 0;
+			} 
+
+			return 0;
+		}
+	}
+
+	fprintf(stderr, "deregister: task not found\n");
+	return 0;
+}
+
+int dsh_read(char **argv)
+{
+	int fdin, num;
+	char *buf, *pos;
+	size_t ret, bufsize;
+	struct duet_item *itm;
+
+	if (!argv[1] || !argv[2]) {
+		fprintf(stderr, "Error: Invalid read args\n");
+		return 0;
+	}
+
+	/* Copy the fd number */
+	errno = 0;
+	fdin = (int)strtol(argv[1], NULL, 10);
+	if (errno || fdin <= 0) {
+		perror("read: invalid file descriptor");
+		return 0;
+	}
+
+	/* Copy the number of items */
+	errno = 0;
+	num = (int)strtol(argv[2], NULL, 10);
+	if (errno || num <= 0) {
+		perror("read: invalid number of items");
+		return 0;
+	}
+
+	bufsize = num * sizeof(struct duet_item);
+	buf = malloc(bufsize);
+	if (!buf) {
+		fprintf(stderr, "read: buffer allocation failed\n");
+		return -ENOMEM;
+	}
+
+	ret = read(fdin, buf, bufsize);
+	if (ret < 0) {
+		perror("read: read call failed");
+		goto out;
+	}
+
+	/* Print out the received items */
+	if (!ret) {
+		fprintf(stdout, "Received no items.\n");
+		goto out;
+	}
+
+	/* Print out the list we received */
+	fprintf(stdout, "UUID            \tInode number\tGeneration\tOffset      \tState   \n"
+			"----------------\t------------\t----------\t------------\t--------\n");
+	for (pos = buf; pos < buf + ret; pos += sizeof(struct duet_item)) {
+		itm = (struct duet_item *)pos;
+		fprintf(stdout, "%16llx\t%12lu\t%10lu\t%12lu\t%8x\n",
+			itm->uuid, DUET_UUID_INO(itm->uuid),
+			DUET_UUID_GEN(itm->uuid), itm->idx << 12, itm->state);
+	}
+	fprintf(stdout, "\n");
+
+out:
+	free(buf);
+	return 0;
+}
+
+int dsh_set(char **argv)
 {
 	fprintf(stdout, "Not implemented\n");
 	return 0;
 }
 
-int dsh_set(char **args)
+int dsh_reset(char **argv)
 {
 	fprintf(stdout, "Not implemented\n");
 	return 0;
 }
 
-int dsh_reset(char **args)
+int dsh_check(char **argv)
 {
 	fprintf(stdout, "Not implemented\n");
 	return 0;
 }
 
-int dsh_check(char **args)
-{
-	fprintf(stdout, "Not implemented\n");
-	return 0;
-}
-
-int dsh_read(char **args)
-{
-	fprintf(stdout, "Not implemented\n");
-	return 0;
-}
-
-int dsh_help(char **args)
+int dsh_help(char **argv)
 {
 	fprintf(stdout,
 "\n"
@@ -228,12 +325,23 @@ int dsh_help(char **args)
 "        NAME    a human-readable name for the task\n"
 "        MASK    the mask of events of interest to the task\n"
 "        PATH    the path that Duet should watch for events\n"
+"\n"
+"    deregister FD\n"
+"        Deregisters a task previously registered with Duet.\n"
+"\n"
+"        FD      File descriptor of task (find using 'list')\n"
+"\n"
+"    read FD NUM\n"
+"        Read and pretty print events for a registered task.\n"
+"\n"
+"        FD      File descriptor of task (find using 'list')\n"
+"        NUM     Maximum number of items to read\n"
 "\n");
 
 	return 0;
 }
 
-int dsh_exit(char **args)
+int dsh_exit(char **argv)
 {
 	return 1;
 }
@@ -244,10 +352,10 @@ char *dsh_cmd_str[] = {
 	"list",
 	"register",
 	"deregister",
+	"read",
 	"set",
 	"reset",
 	"check",
-	"read",
 	"help",
 	"exit"
 };
@@ -257,10 +365,10 @@ int (*dsh_cmd_func[]) (char **) = {
 	&dsh_list,
 	&dsh_reg,
 	&dsh_dereg,
+	&dsh_read,
 	&dsh_set,
 	&dsh_reset,
 	&dsh_check,
-	&dsh_read,
 	&dsh_help,
 	&dsh_exit
 };

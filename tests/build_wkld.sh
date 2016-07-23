@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # Generates the designated filebench personality and profile files
 # @1: filebench personality name
