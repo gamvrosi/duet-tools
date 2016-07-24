@@ -43,49 +43,6 @@ int duet_register(const char *name, __u32 regmask, const char *path)
 }
 
 #if 0
-int duet_fetch(int duet_fd, int tid, struct duet_item *items, int *count)
-{
-	int ret = 0;
-	struct duet_ioctl_fetch_args *args;
-	size_t args_size;
-
-	if (*count > 65535) {
-		fprintf(stderr, "duet: requested too many items (%d > 65535)\n",
-			*count);
-		return -1;
-	}
-
-	if (duet_fd == -1) {
-		fprintf(stderr, "duet: failed to open duet device\n");
-		return -1;
-	}
-
-	args_size = sizeof(*args) + (*count * sizeof(struct duet_item));
-	args = malloc(args_size);
-	if (!args) {
-		perror("duet: fetch args allocation failed");
-		return 1;
-	}
-
-	memset(args, 0, args_size);
-	args->tid = tid;
-	args->num = *count;
-
-	ret = ioctl(duet_fd, DUET_IOC_FETCH, args);
-	if (ret < 0) {
-		//perror("duet: fetch ioctl error");
-		goto out;
-	}
-
-	/* Copy out results */
-	*count = args->num;
-	memcpy(items, args->itm, *count * sizeof(struct duet_item));
-
-out:
-	free(args);
-	return ret;
-}
-
 int duet_check_done(int duet_fd, int tid, __u64 idx, __u32 count)
 {
 	int ret = 0;
@@ -210,7 +167,7 @@ int duet_print_bmap(int id)
 	args.id = id;
 
 	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_PRINT_BMAP, &args);
+	ret = syscall(329, DUET_STATUS_PRINT_BMAP, &args);
 	if (ret < 0) {
 		perror("duet_print_bmap: syscall failed");
 		return ret;
@@ -236,7 +193,7 @@ int duet_print_item(int id)
 	args.id = id;
 
 	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_PRINT_ITEM, &args);
+	ret = syscall(329, DUET_STATUS_PRINT_ITEM, &args);
 	if (ret < 0) {
 		perror("duet_print_item: syscall failed");
 		return ret;
@@ -248,13 +205,14 @@ int duet_print_item(int id)
 }
 
 #define PRINT_MASK(mask) \
-	fprintf(stdout, "Reg. mask: %s%s%s%s%s%s\n", \
+	fprintf(stdout, "Reg. mask: %s%s%s%s%s%s%s\n", \
 		((mask & DUET_PAGE_ADDED) ? "ADDED " : ""), \
 		((mask & DUET_PAGE_REMOVED) ? "REMOVED " : ""), \
 		((mask & DUET_PAGE_DIRTY) ? "DIRTY " : ""), \
 		((mask & DUET_PAGE_FLUSHED) ? "FLUSHED " : ""), \
 		((mask & DUET_PAGE_EXISTS) ? "EXISTS " : ""), \
-		((mask & DUET_PAGE_MODIFIED) ? "MODIFIED " : ""))
+		((mask & DUET_PAGE_MODIFIED) ? "MODIFIED " : ""), \
+		((mask & DUET_FD_NONBLOCK) ? "O_NONBLOCK " : ""));
 
 int duet_print_list(int numtasks)
 {
@@ -280,7 +238,7 @@ int duet_print_list(int numtasks)
 	args->numtasks = numtasks;
 
 	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_PRINT_LIST, args);
+	ret = syscall(329, DUET_STATUS_PRINT_LIST, args);
 	if (ret < 0) {
 		perror("duet_print_list: syscall failed");
 		goto out;

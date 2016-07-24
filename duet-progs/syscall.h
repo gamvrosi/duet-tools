@@ -22,15 +22,13 @@
 #include <linux/limits.h>
 #include "duet.h"
 
-/* Status syscall args */
-enum duet_status_flags {
-	DUET_START = 1,
-	DUET_STOP,
-	DUET_REPORT,
-	DUET_PRINT_BMAP,
-	DUET_PRINT_ITEM,
-	DUET_PRINT_LIST,
-};
+/* Status syscall flags */
+#define DUET_STATUS_START	0x0001
+#define DUET_STATUS_STOP	0x0002
+#define DUET_STATUS_REPORT	0x0004
+#define DUET_STATUS_PRINT_BMAP	0x0008
+#define DUET_STATUS_PRINT_ITEM	0x0010
+#define DUET_STATUS_PRINT_LIST	0x0020
 
 struct duet_task_attrs {
 	__u8	id;
@@ -60,5 +58,10 @@ struct duet_status_args {
 		};
 	};
 };
+
+/* Bmap syscall flags */
+#define DUET_BMAP_SET		0x0001
+#define DUET_BMAP_RESET		0x0002
+#define DUET_BMAP_CHECK		0x0004
 
 #endif /* _DUET_SYSCALL_H */

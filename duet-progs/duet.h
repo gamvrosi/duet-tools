@@ -39,19 +39,17 @@
 #endif /* DUET_DEBUG */
 
 /*
- * Duet can be either state- and/or event-based.
- * Event-based Duet monitors events that have happened on a page, which include
- * all events in the lifetime of a cache page: ADDED, REMOVED, DIRTY, FLUSHED.
- * Add and remove events are triggered when a page __descriptor__ is inserted or
- * removed from the page cache. Modification events are triggered when the page
- * is dirtied (nb: during writes, pages are added, then dirtied), and flush
- * events are triggered when a page is marked for writeback.
- * State-based Duet monitors changes in the page cache. Registering for EXISTS
- * events means that fetch will be returning ADDED or REMOVED events if the
- * state of the page changes since the last fetch (i.e. the two events cancel
- * each other out). Registering for MODIFIED events means that fetch will be
- * returning DIRTY or FLUSHED events if the state of the page changes since the
- * last fetch.
+ * Duet can be state-based, and/or event-based.
+ *
+ * Event-based Duet monitors events that occurred on a page, during its
+ * time in the page cache: ADDED, REMOVED, DIRTY, and FLUSHED.
+ *
+ * State-based Duet monitors changes in the page cache since the last time
+ * a notification was sent to the interested application. Registering for
+ * EXIST informs the application of page additions or removals from the cache
+ * (i.e. ADDED and REMOVED events cancel each other out if the application
+ * hasn't been told in the meantime). Registering for MODIFIED events is a
+ * similar model, where unreported DIRTY and FLUSHED events cancel each other.
  */
 #define DUET_PAGE_ADDED		0x0001
 #define DUET_PAGE_REMOVED	0x0002
@@ -61,23 +59,25 @@
 #define DUET_PAGE_EXISTS	0x0020
 #define DUET_FD_NONBLOCK	0x0040
 
-#define DUET_UUID_INO(uuid)	((unsigned long)(uuid & 0xffffffff))
-#define DUET_UUID_GEN(uuid)	((unsigned long)(uuid >> 32))
-
 /*
- * Item struct returned for processing. For both state- and event- based duet,
- * we return 4 bits, for page addition, removal, dirtying, and flushing. The
- * acceptable combinations, however, will differ based on what the task has
- * subscribed for.
+ * Item struct returned for processing.
+ * The UUID currently consists of the inode number, the inode generation
+ * (to help us identify cases of inode reuse), and the task id.
+ * For state-based duet, we mark a page if it EXISTS or is MODIFIED.
+ * For event-based duet, we mark a page added, removed, dirtied, and/or flushed.
+ * Acceptable event combinations will differ based on the task's subscription.
  */
+struct duet_uuid {
+	unsigned long	ino;
+	__u32		gen;
+	__u8		tid;
+};
+
 struct duet_item {
-	unsigned long long	uuid;
+	struct duet_uuid	uuid;
 	unsigned long		idx;
 	__u16			state;
 };
-
-int open_duet_dev(void);
-void close_duet_dev(int duet_fd);
 
 int duet_register(const char *name, __u32 regmask, const char *path);
 int duet_deregister(int duet_fd, int tid);

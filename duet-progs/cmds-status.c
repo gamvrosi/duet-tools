@@ -81,7 +81,7 @@ static int cmd_status_start(int argc, char **argv)
 		usage(cmd_status_start_usage);
 
 	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_START, &args);
+	ret = syscall(329, DUET_STATUS_START, &args);
 	if (ret < 0) {
 		perror("duet status: start failed");
 		usage(cmd_status_start_usage);
@@ -99,7 +99,7 @@ static int cmd_status_stop(int argc, char **argv)
 	args.size = sizeof(args);
 
 	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STOP, &args);
+	ret = syscall(329, DUET_STATUS_STOP, &args);
 	if (ret < 0) {
 		perror("duet status: stop failed");
 		usage(cmd_status_stop_usage);
@@ -117,7 +117,7 @@ static int cmd_status_report(int argc, char **argv)
 	args.size = sizeof(args);
 
 	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_REPORT, &args);
+	ret = syscall(329, DUET_STATUS_REPORT, &args);
 	if (ret < 0) {
 		perror("duet status: report failed");
 		usage(cmd_status_report_usage);

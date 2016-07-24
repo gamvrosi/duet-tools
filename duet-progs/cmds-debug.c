@@ -56,7 +56,7 @@ int dsh_print(char **argv)
 		}
 		
 		/* Call syscall x86_64 #329: duet_status */
-		ret = syscall(329, DUET_PRINT_BMAP, &args);
+		ret = syscall(329, DUET_STATUS_PRINT_BMAP, &args);
 		if (ret < 0) {
 			perror("print bmap: syscall failed");
 			return 0;
@@ -73,7 +73,7 @@ int dsh_print(char **argv)
 		}
 
 		/* Call syscall x86_64 #329: duet_status */
-		ret = syscall(329, DUET_PRINT_ITEM, &args);
+		ret = syscall(329, DUET_STATUS_PRINT_ITEM, &args);
 		if (ret < 0) {
 			perror("print item: syscall failed");
 			return 0;
@@ -213,11 +213,19 @@ int dsh_dereg(char **argv)
 	return 0;
 }
 
+#define PRINT_STATE(mask) \
+	fprintf(stdout, "%s%s%s%s\n", \
+		((mask & DUET_PAGE_ADDED) ? "ADDED " : ""), \
+		((mask & DUET_PAGE_REMOVED) ? "REMOVED " : ""), \
+		((mask & DUET_PAGE_DIRTY) ? "DIRTY " : ""), \
+		((mask & DUET_PAGE_FLUSHED) ? "FLUSHED " : ""));
+
 int dsh_read(char **argv)
 {
 	int fdin, num;
 	char *buf, *pos;
-	size_t ret, bufsize;
+	ssize_t ret;
+	size_t bufsize;
 	struct duet_item *itm;
 
 	if (!argv[1] || !argv[2]) {
@@ -249,25 +257,25 @@ int dsh_read(char **argv)
 	}
 
 	ret = read(fdin, buf, bufsize);
-	if (ret < 0) {
+	if (ret < 0 && errno != EAGAIN) {
 		perror("read: read call failed");
 		goto out;
 	}
 
 	/* Print out the received items */
-	if (!ret) {
+	if (!ret || errno == EAGAIN) {
 		fprintf(stdout, "Received no items.\n");
 		goto out;
 	}
 
 	/* Print out the list we received */
-	fprintf(stdout, "UUID            \tInode number\tGeneration\tOffset      \tState   \n"
-			"----------------\t------------\t----------\t------------\t--------\n");
+	fprintf(stdout, "Task ID\tInode number\tGeneration\tOffset      \tEvents  \n"
+			"-------\t------------\t----------\t------------\t--------\n");
 	for (pos = buf; pos < buf + ret; pos += sizeof(struct duet_item)) {
 		itm = (struct duet_item *)pos;
-		fprintf(stdout, "%16llx\t%12lu\t%10lu\t%12lu\t%8x\n",
-			itm->uuid, DUET_UUID_INO(itm->uuid),
-			DUET_UUID_GEN(itm->uuid), itm->idx << 12, itm->state);
+		fprintf(stdout, "%7u\t%12lu\t%10u\t%12lu\t", itm->uuid.tid,
+			itm->uuid.ino, itm->uuid.gen, itm->idx << 12);
+		PRINT_STATE(itm->state);
 	}
 	fprintf(stdout, "\n");
 
