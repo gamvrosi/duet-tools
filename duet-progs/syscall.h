@@ -64,4 +64,9 @@ struct duet_status_args {
 #define DUET_BMAP_RESET		0x0002
 #define DUET_BMAP_CHECK		0x0004
 
+struct duet_uuid_arg {
+	__u32			size;
+	struct duet_uuid	uuid;
+};
+
 #endif /* _DUET_SYSCALL_H */

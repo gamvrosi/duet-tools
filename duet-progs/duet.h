@@ -82,9 +82,9 @@ struct duet_item {
 int duet_register(const char *name, __u32 regmask, const char *path);
 int duet_deregister(int duet_fd, int tid);
 int duet_fetch(int duet_fd, int tid, struct duet_item *items, int *count);
-int duet_check_done(int duet_fd, int tid, __u64 idx, __u32 count);
-int duet_set_done(int duet_fd, int tid, __u64 idx, __u32 count);
-int duet_unset_done(int duet_fd, int tid, __u64 idx, __u32 count);
+int duet_set_done(struct duet_uuid uuid);
+int duet_reset_done(struct duet_uuid uuid);
+int duet_check_done(struct duet_uuid uuid);
 int duet_get_path(int duet_fd, int tid, unsigned long long uuid, char *path);
 int duet_print_bmap(int id);
 int duet_print_item(int id);

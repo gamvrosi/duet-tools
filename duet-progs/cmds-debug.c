@@ -213,8 +213,11 @@ int dsh_dereg(char **argv)
 	return 0;
 }
 
+#define UUID_IDX(uuid)	(((unsigned long long) uuid.gen << 32) | \
+			  (unsigned long long) uuid.ino)
+
 #define PRINT_STATE(mask) \
-	fprintf(stdout, "%s%s%s%s\n", \
+	fprintf(stdout, "    Events: %s%s%s%s\n", \
 		((mask & DUET_PAGE_ADDED) ? "ADDED " : ""), \
 		((mask & DUET_PAGE_REMOVED) ? "REMOVED " : ""), \
 		((mask & DUET_PAGE_DIRTY) ? "DIRTY " : ""), \
@@ -222,7 +225,7 @@ int dsh_dereg(char **argv)
 
 int dsh_read(char **argv)
 {
-	int fdin, num;
+	int fdin, num, count;
 	char *buf, *pos;
 	ssize_t ret;
 	size_t bufsize;
@@ -269,15 +272,23 @@ int dsh_read(char **argv)
 	}
 
 	/* Print out the list we received */
-	fprintf(stdout, "Task ID\tInode number\tGeneration\tOffset      \tEvents  \n"
-			"-------\t------------\t----------\t------------\t--------\n");
+	fprintf(stdout, "Printing received items.\n\n");
+	count = 0;
 	for (pos = buf; pos < buf + ret; pos += sizeof(struct duet_item)) {
 		itm = (struct duet_item *)pos;
-		fprintf(stdout, "%7u\t%12lu\t%10u\t%12lu\t", itm->uuid.tid,
-			itm->uuid.ino, itm->uuid.gen, itm->idx << 12);
+
+		fprintf(stdout, "    Task ID: %u\n"
+				"    Inode no: %lu\n"
+				"    Inode gen: %u\n"
+				"    UUID_IDX: %llu\n"
+				"    Byte offset: %lu\n",
+			itm->uuid.tid, itm->uuid.ino, itm->uuid.gen,
+			UUID_IDX(itm->uuid), itm->idx << 12);
 		PRINT_STATE(itm->state);
+		fprintf(stdout, "\n");
+		count++;
 	}
-	fprintf(stdout, "\n");
+	fprintf(stdout, "\nPrinted %d items\n", count);
 
 out:
 	free(buf);
@@ -286,19 +297,137 @@ out:
 
 int dsh_set(char **argv)
 {
-	fprintf(stdout, "Not implemented\n");
+	int ret;
+	struct duet_uuid uuid;
+
+	if (!argv[1] || !argv[2] || !argv[3]) {
+		fprintf(stderr, "Error: Invalid set args\n");
+		return 0;
+	}
+
+	/* Copy the task id */
+	errno = 0;
+	uuid.tid = (__u8)strtol(argv[1], NULL, 10);
+	if (errno || !uuid.tid) {
+		perror("set: invalid task id");
+		return 0;
+	}
+
+	/* Copy the inode number */
+	errno = 0;
+	uuid.ino = (unsigned long)strtol(argv[2], NULL, 10);
+	if (errno || !uuid.ino) {
+		perror("set: invalid inode number");
+		return 0;
+	}
+
+	/* Copy the inode generation */
+	errno = 0;
+	uuid.gen = (__u32)strtol(argv[3], NULL, 10);
+	if (errno) {
+		perror("set: invalid inode generation");
+		return 0;
+	}
+
+	ret = duet_set_done(uuid);
+	if (ret)
+		fprintf(stderr, "set: duet_set_done API call failed\n");
+
+	if (!ret)
+		duet_dbg(stdout, "Added (ino%lu, gen%u) to task %d\n",
+			uuid.ino, uuid.gen, uuid.tid);
+
 	return 0;
 }
 
 int dsh_reset(char **argv)
 {
-	fprintf(stdout, "Not implemented\n");
+	int ret;
+	struct duet_uuid uuid;
+
+	if (!argv[1] || !argv[2] || !argv[3]) {
+		fprintf(stderr, "Error: Invalid reset args\n");
+		return 0;
+	}
+
+	/* Copy the task id */
+	errno = 0;
+	uuid.tid = (__u8)strtol(argv[1], NULL, 10);
+	if (errno || !uuid.tid) {
+		perror("reset: invalid task id");
+		return 0;
+	}
+
+	/* Copy the inode number */
+	errno = 0;
+	uuid.ino = (unsigned long)strtol(argv[2], NULL, 10);
+	if (errno || !uuid.ino) {
+		perror("reset: invalid inode number");
+		return 0;
+	}
+
+	/* Copy the inode generation */
+	errno = 0;
+	uuid.gen = (__u32)strtol(argv[3], NULL, 10);
+	if (errno) {
+		perror("reset: invalid inode generation");
+		return 0;
+	}
+
+	ret = duet_reset_done(uuid);
+	if (ret)
+		fprintf(stderr, "reset: duet_reset_done API call failed\n");
+
+	if (!ret)
+		fprintf(stdout, "Removed (ino%lu, gen%u) to task %d\n",
+			uuid.ino, uuid.gen, uuid.tid);
+
 	return 0;
 }
 
 int dsh_check(char **argv)
 {
-	fprintf(stdout, "Not implemented\n");
+	int ret;
+	struct duet_uuid uuid;
+
+	if (!argv[1] || !argv[2] || !argv[3]) {
+		fprintf(stderr, "Error: Invalid check args\n");
+		return 0;
+	}
+
+	/* Copy the task id */
+	errno = 0;
+	uuid.tid = (__u8)strtol(argv[1], NULL, 10);
+	if (errno || !uuid.tid) {
+		perror("check: invalid task id");
+		return 0;
+	}
+
+	/* Copy the inode number */
+	errno = 0;
+	uuid.ino = (unsigned long)strtol(argv[2], NULL, 10);
+	if (errno || !uuid.ino) {
+		perror("check: invalid inode number");
+		return 0;
+	}
+
+	/* Copy the inode generation */
+	errno = 0;
+	uuid.gen = (__u32)strtol(argv[3], NULL, 10);
+	if (errno) {
+		perror("check: invalid inode generation");
+		return 0;
+	}
+
+	ret = duet_check_done(uuid);
+	if (ret < 0)
+		fprintf(stderr, "check: duet_check_done API call failed\n");
+
+	if (ret >= 0)
+		fprintf(stdout, "(ino%lu, gen%u) in task %d is %sset (ret%d)\n",
+			uuid.ino, uuid.gen, uuid.tid,
+			(ret == 1) ? "" : "not ", ret);
+
 	return 0;
 }
 
@@ -344,6 +473,28 @@ int dsh_help(char **argv)
 "\n"
 "        FD      File descriptor of task (find using 'list')\n"
 "        NUM     Maximum number of items to read\n"
+"\n"
+"    set TID INO GEN\n"
+"        Set a specific bit on the BitTree of a given task.\n"
+"\n"
+"        TID     Task ID (find using 'list')\n"
+"        INO     Inode number to set\n"
+"        GEN     Inode generation to set (find using 'read')\n"
+"\n"
+"    reset TID INO GEN\n"
+"        Reset a specific bit on the BitTree of a given task.\n"
+"\n"
+"        TID     Task ID (find using 'list')\n"
+"        INO     Inode number to set\n"
+"        GEN     Inode generation to set (find using 'read')\n"
+"\n"
+"    check TID INO GEN\n"
+"        Check whether a specific bit on the BitTree of a given\n"
+"        task is set.\n"
+"\n"
+"        TID     Task ID (find using 'list')\n"
+"        INO     Inode number to set\n"
+"        GEN     Inode generation to set (find using 'read')\n"
 "\n");
 
 	return 0;
