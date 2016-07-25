@@ -103,36 +103,31 @@ int duet_check_done(struct duet_uuid uuid)
 	return ret;
 }
 
-#if 0
-/* Warning: should only be called with a path that's DUET_MAX_PATH or longer */
-int duet_get_path(int duet_fd, int tid, unsigned long long uuid, char *path)
+/* Caller needs to free returned path */
+char *duet_get_path(struct duet_uuid uuid)
 {
-	int ret=0;
-	struct duet_ioctl_cmd_args args;
+	int ret;
+	char *path;
+	struct duet_uuid_arg arg;
 
-	if (duet_fd == -1) {
-		fprintf(stderr, "duet: failed to open duet device\n");
-		return 1;
-	}
+	path = calloc(PATH_MAX, sizeof(char));
+	if (!path)
+		return path;
 
-	memset(&args, 0, sizeof(args));
-	args.cmd_flags = DUET_GET_PATH;
-	args.tid = tid;
-	args.c_uuid = uuid;
+	arg.size = sizeof(arg);
+	arg.uuid = uuid;
 
-	ret = ioctl(duet_fd, DUET_IOC_CMD, &args);
-	if (ret < 0) {
-		perror("duet: getpath ioctl error");
-		goto out;
-	}
+	/* Call syscall x86_64 #332: duet_get_path */
+	ret = syscall(332, &arg, path, PATH_MAX);
+	if (ret < 0)
+		perror("duet_get_path: syscall failed");
 
-	if (!args.ret)
-		memcpy(path, args.cpath, DUET_MAX_PATH);
+	if (!ret)
+		duet_dbg("(ino%lu, gen%u) was matched to path %s\n",
+			uuid.ino, uuid.gen, path);
 
-out:
-	return args.ret || ret;
+	return path;
 }
-#endif /* 0 */
 
 int duet_print_bmap(int id)
 {

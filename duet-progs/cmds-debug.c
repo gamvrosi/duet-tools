@@ -422,12 +422,57 @@ int dsh_check(char **argv)
 	ret = duet_check_done(uuid);
 	if (ret < 0)
 		fprintf(stderr, "check: duet_check_done API call failed\n");
-
-	if (ret >= 0)
+	else
 		fprintf(stdout, "(ino%lu, gen%u) in task %d is %sset (ret%d)\n",
 			uuid.ino, uuid.gen, uuid.tid,
 			(ret == 1) ? "" : "not ", ret);
 
+	return 0;
+}
+
+int dsh_getpath(char **argv)
+{
+	char *path;
+	struct duet_uuid uuid;
+
+	if (!argv[1] || !argv[2] || !argv[3]) {
+		fprintf(stderr, "Error: Invalid getpath args\n");
+		return 0;
+	}
+
+	/* Copy the task id */
+	errno = 0;
+	uuid.tid = (__u8)strtol(argv[1], NULL, 10);
+	if (errno || !uuid.tid) {
+		perror("getpath: invalid task id");
+		return 0;
+	}
+
+	/* Copy the inode number */
+	errno = 0;
+	uuid.ino = (unsigned long)strtol(argv[2], NULL, 10);
+	if (errno || !uuid.ino) {
+		perror("getpath: invalid inode number");
+		return 0;
+	}
+
+	/* Copy the inode generation */
+	errno = 0;
+	uuid.gen = (__u32)strtol(argv[3], NULL, 10);
+	if (errno) {
+		perror("getpath: invalid inode generation");
+		return 0;
+	}
+
+	path = duet_get_path(uuid);
+	if (!path)
+		fprintf(stdout, "Got no path for (ino%lu, gen%u)\n",
+			uuid.ino, uuid.gen);
+	if (path)
+		fprintf(stdout, "(ino%lu, gen%u) maps to path: %s\n",
+			uuid.ino, uuid.gen, path);
+
+	free(path);
 	return 0;
 }
 
@@ -485,16 +530,24 @@ int dsh_help(char **argv)
 "        Reset a specific bit on the BitTree of a given task.\n"
 "\n"
 "        TID     Task ID (find using 'list')\n"
-"        INO     Inode number to set\n"
-"        GEN     Inode generation to set (find using 'read')\n"
+"        INO     Inode number to reset\n"
+"        GEN     Inode generation to reset (find using 'read')\n"
 "\n"
 "    check TID INO GEN\n"
 "        Check whether a specific bit on the BitTree of a given\n"
 "        task is set.\n"
 "\n"
 "        TID     Task ID (find using 'list')\n"
-"        INO     Inode number to set\n"
-"        GEN     Inode generation to set (find using 'read')\n"
+"        INO     Inode number to check\n"
+"        GEN     Inode generation to check (find using 'read')\n"
+"\n"
+"    getpath TID INO GEN\n"
+"        Return the path corresponding to the specified inode,\n"
+"        if it falls under the task's registered directory.\n"
+"\n"
+"        TID     Task ID (find using 'list')\n"
+"        INO     Inode number to get the path of\n"
+"        GEN     Inode generation to get the path of (find using 'read')\n"
 "\n");
 
 	return 0;
@@ -515,6 +568,7 @@ char *dsh_cmd_str[] = {
 	"set",
 	"reset",
 	"check",
+	"getpath",
 	"help",
 	"exit"
 };
@@ -528,6 +582,7 @@ int (*dsh_cmd_func[]) (char **) = {
 	&dsh_set,
 	&dsh_reset,
 	&dsh_check,
+	&dsh_getpath,
 	&dsh_help,
 	&dsh_exit
 };

@@ -85,7 +85,7 @@ int duet_fetch(int duet_fd, int tid, struct duet_item *items, int *count);
 int duet_set_done(struct duet_uuid uuid);
 int duet_reset_done(struct duet_uuid uuid);
 int duet_check_done(struct duet_uuid uuid);
-int duet_get_path(int duet_fd, int tid, unsigned long long uuid, char *path);
+char *duet_get_path(struct duet_uuid uuid);
 int duet_print_bmap(int id);
 int duet_print_item(int id);
 int duet_print_list(int numtasks);
