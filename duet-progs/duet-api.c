@@ -23,14 +23,55 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "syscall.h"
+#include "ioctl.h"
+
+#define DUET_DEV_NAME   "/dev/duet"		
+
+int open_duet_dev(void)		
+{		
+	int ret;		
+	struct stat st;		
+
+	ret = stat(DUET_DEV_NAME, &st);		
+	if (ret < 0) {		
+		ret = system("modprobe duet");		
+		if (ret == -1)		
+			return -1;		
+		
+		ret = stat(DUET_DEV_NAME, &st);		
+		if (ret < 0)		
+			return -1;		
+	}		
+		
+	if (S_ISCHR(st.st_mode))		
+		duet_fd = open(DUET_DEV_NAME, O_RDWR);		
+		
+	return duet_fd;		
+}		
+		
+void close_duet_dev(void)
+{		
+	int ret;		
+	struct stat st;		
+		
+	ret = stat(DUET_DEV_NAME, &st);		
+	if (ret < 0)		
+		return;		
+		
+	close(duet_fd);		
+}
 
 int duet_register(const char *name, __u32 regmask, const char *path)
 {
 	int ret = 0;
+	struct duet_ioctl_init_args args;
 
-	/* Call syscall x86_64 #330: duet_init */
-	ret = syscall(330, name, regmask, path);
+	args.size = sizeof(args);
+	memcpy(args.name, name, NAME_MAX);
+	args.regmask = regmask;
+	memcpy(args.path, path, PATH_MAX);
+
+	ret = ioctl(duet_fd, DUET_IOC_INIT, &args);
 	if (ret < 0)
 		perror("duet_register: syscall failed");
 
@@ -45,19 +86,19 @@ int duet_register(const char *name, __u32 regmask, const char *path)
 int duet_set_done(struct duet_uuid uuid)
 {
 	int ret = 0;
-	struct duet_uuid_arg arg;
+	struct duet_ioctl_bmap_args args;
 
-	arg.size = sizeof(arg);
-	arg.uuid = uuid;
+	args.size = sizeof(args);
+	args.flags = DUET_BMAP_SET;
+	args.uuid = uuid;
 
-	/* Call syscall x86_64 #331: duet_bmap */
-	ret = syscall(331, DUET_BMAP_SET, &arg);
+	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
 		perror("duet_set_done: syscall failed");
 
 	if (!ret)
 		duet_dbg("Added (ino%lu, gen%u) to task %d\n",
-			arg.uuid.ino, arg.uuid.gen, arg.uuid.tid);
+			args.uuid.ino, args.uuid.gen, args.uuid.tid);
 
 	return ret;
 }
@@ -65,19 +106,19 @@ int duet_set_done(struct duet_uuid uuid)
 int duet_reset_done(struct duet_uuid uuid)
 {
 	int ret = 0;
-	struct duet_uuid_arg arg;
+	struct duet_ioctl_bmap_args args;
 
-	arg.size = sizeof(arg);
-	arg.uuid = uuid;
+	args.size = sizeof(args);
+	args.flags = DUET_BMAP_RESET;
+	args.uuid = uuid;
 
-	/* Call syscall x86_64 #331: duet_bmap */
-	ret = syscall(331, DUET_BMAP_RESET, &arg);
+	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
 		perror("duet_reset_done: syscall failed");
 
 	if (!ret)
 		duet_dbg("Removed (ino%lu, gen%u) to task %d\n",
-			arg.uuid.ino, arg.uuid.gen, arg.uuid.tid);
+			args.uuid.ino, args.uuid.gen, args.uuid.tid);
 
 	return ret;
 }
@@ -85,19 +126,19 @@ int duet_reset_done(struct duet_uuid uuid)
 int duet_check_done(struct duet_uuid uuid)
 {
 	int ret = 0;
-	struct duet_uuid_arg arg;
+	struct duet_ioctl_bmap_args args;
 
-	arg.size = sizeof(arg);
-	arg.uuid = uuid;
+	args.size = sizeof(args);
+	args.flags = DUET_BMAP_CHECK;
+	args.uuid = uuid;
 
-	/* Call syscall x86_64 #331: duet_bmap */
-	ret = syscall(331, DUET_BMAP_CHECK, &arg);
+	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
 		perror("duet_check_done: syscall failed");
 
 	if (ret >= 0)
 		duet_dbg("(ino%lu, gen%u) in task %d is %sset (ret%d)\n",
-			arg.uuid.ino, arg.uuid.gen, arg.uuid.tid,
+			args.uuid.ino, args.uuid.gen, args.uuid.tid,
 			(ret == 1) ? "" : "not ", ret);
 
 	return ret;
@@ -108,23 +149,26 @@ char *duet_get_path(struct duet_uuid uuid)
 {
 	int ret;
 	char *path;
-	struct duet_uuid_arg arg;
+	struct duet_ioctl_gpath_args args;
 
 	path = calloc(PATH_MAX, sizeof(char));
 	if (!path)
 		return path;
 
-	arg.size = sizeof(arg);
-	arg.uuid = uuid;
+	args.size = sizeof(args);
+	args.uuid = uuid;
+	args.path[0] = '\0';
 
-	/* Call syscall x86_64 #332: duet_get_path */
-	ret = syscall(332, &arg, path, PATH_MAX);
+	ret = ioctl(duet_fd, DUET_IOC_GPATH, &args);
 	if (ret < 0)
 		perror("duet_get_path: syscall failed");
 
 	if (!ret)
 		duet_dbg("(ino%lu, gen%u) was matched to path %s\n",
-			uuid.ino, uuid.gen, path);
+			args.uuid.ino, args.uuid.gen, args.path);
+
+	if (ret)
+		memcpy(path, args.path, PATH_MAX);
 
 	return path;
 }
@@ -132,7 +176,7 @@ char *duet_get_path(struct duet_uuid uuid)
 int duet_print_bmap(int id)
 {
 	int ret = 0;
-	struct duet_status_args args;
+	struct duet_ioctl_status_args args;
 
 	if (id <= 0) {
 		fprintf(stderr, "duet_print_bmap: invalid id\n");
@@ -141,10 +185,10 @@ int duet_print_bmap(int id)
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
+	args.flags = DUET_STATUS_PRINT_BMAP;
 	args.id = id;
 
-	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STATUS_PRINT_BMAP, &args);
+	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet_print_bmap: syscall failed");
 		return ret;
@@ -158,7 +202,7 @@ int duet_print_bmap(int id)
 int duet_print_item(int id)
 {
 	int ret = 0;
-	struct duet_status_args args;
+	struct duet_ioctl_status_args args;
 
 	if (id <= 0) {
 		fprintf(stderr, "duet_print_item: invalid id\n");
@@ -167,10 +211,10 @@ int duet_print_item(int id)
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
+	args.flags = DUET_STATUS_PRINT_ITEM;
 	args.id = id;
 
-	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STATUS_PRINT_ITEM, &args);
+	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet_print_item: syscall failed");
 		return ret;
@@ -194,7 +238,7 @@ int duet_print_item(int id)
 int duet_print_list(int numtasks)
 {
 	int i, ret = 0;
-	struct duet_status_args *args;
+	struct duet_ioctl_status_args *args;
 	size_t args_size;
 
 	if (numtasks <= 0 || numtasks > 65535) {
@@ -202,7 +246,7 @@ int duet_print_list(int numtasks)
 		return 1;
 	}
 
-	args_size = sizeof(struct duet_status_args) + (numtasks *
+	args_size = sizeof(struct duet_ioctl_status_args) + (numtasks *
 		    sizeof(struct duet_task_attrs));
 	args = malloc(args_size);
 	if (!args) {
@@ -212,10 +256,10 @@ int duet_print_list(int numtasks)
 
 	memset(args, 0, args_size);
 	args->size = sizeof(*args);
+	args->flags = DUET_STATUS_PRINT_LIST;
 	args->numtasks = numtasks;
 
-	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STATUS_PRINT_LIST, args);
+	ret = ioctl(duet_fd, DUET_IOC_STATUS, args);
 	if (ret < 0) {
 		perror("duet_print_list: syscall failed");
 		goto out;
