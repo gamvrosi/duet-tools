@@ -16,7 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include "syscall.h"
+#include "ioctl.h"
 #include "commands.h"
 
 static const char * const status_cmd_group_usage[] = {
@@ -55,10 +55,11 @@ static const char * const cmd_status_report_usage[] = {
 static int cmd_status_start(int argc, char **argv)
 {
 	int c, ret = 0;
-	struct duet_status_args args;
+	struct duet_ioctl_status_args args;
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
+	args.flags = DUET_STATUS_START;
 
 	optind = 1;
 	while ((c = getopt(argc, argv, "n:")) != -1) {
@@ -80,8 +81,7 @@ static int cmd_status_start(int argc, char **argv)
 	if (argc != optind)
 		usage(cmd_status_start_usage);
 
-	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STATUS_START, &args);
+	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet status: start failed");
 		usage(cmd_status_start_usage);
@@ -93,13 +93,13 @@ static int cmd_status_start(int argc, char **argv)
 static int cmd_status_stop(int argc, char **argv)
 {
 	int ret = 0;
-	struct duet_status_args args;
+	struct duet_ioctl_status_args args;
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
+	args.flags = DUET_STATUS_STOP;
 
-	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STATUS_STOP, &args);
+	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet status: stop failed");
 		usage(cmd_status_stop_usage);
@@ -111,13 +111,13 @@ static int cmd_status_stop(int argc, char **argv)
 static int cmd_status_report(int argc, char **argv)
 {
 	int ret = 0;
-	struct duet_status_args args;
+	struct duet_ioctl_status_args args;
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
+	args.flags = DUET_STATUS_REPORT;
 
-	/* Call syscall x86_64 #329: duet_status */
-	ret = syscall(329, DUET_STATUS_REPORT, &args);
+	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet status: report failed");
 		usage(cmd_status_report_usage);

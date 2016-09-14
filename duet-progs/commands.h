@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/syscall.h>
 #include "duet.h"
 
 #define ARGV0_BUF_SIZE	64

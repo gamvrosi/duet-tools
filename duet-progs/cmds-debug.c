@@ -17,7 +17,7 @@
  */
 
 #include "commands.h"
-#include "syscall.h"
+#include "ioctl.h"
 
 #define DSH_TOK_BUFSZ	64
 #define DSH_TOK_DELIM	" \t\r\n\a"
@@ -36,27 +36,22 @@ const char * const cmd_debug_usage[] = {
 /* Shell commands */
 int dsh_print(char **argv)
 {
-	int ret = 0;
-	struct duet_status_args args;
+	int id, ret = 0;
 
 	if (!argv[1] || !argv[2]) {
 		fprintf(stderr, "Error: Invalid print args\n");
 		return 0;
 	}
 
-	memset(&args, 0, sizeof(args));
-	args.size = sizeof(args);
-
 	if (!strcmp(argv[1], "bmap")) {
 		errno = 0;
-		args.id = (__u8)strtol(argv[2], NULL, 10);
-		if (errno || !args.id) {
+		id = (__u8)strtol(argv[2], NULL, 10);
+		if (errno || !id) {
 			perror("print bmap: invalid fd");
 			return 0;	
 		}
-		
-		/* Call syscall x86_64 #329: duet_status */
-		ret = syscall(329, DUET_STATUS_PRINT_BMAP, &args);
+
+		ret = duet_print_bmap(id);
 		if (ret < 0) {
 			perror("print bmap: syscall failed");
 			return 0;
@@ -66,14 +61,13 @@ int dsh_print(char **argv)
 
 	} else if (!strcmp(argv[1], "item")) {
 		errno = 0;
-		args.id = (__u8)strtol(argv[2], NULL, 10);
-		if (errno || !args.id) {
+		id = (__u8)strtol(argv[2], NULL, 10);
+		if (errno || !id) {
 			perror("print item: invalid fd");
 			return 0;
 		}
 
-		/* Call syscall x86_64 #329: duet_status */
-		ret = syscall(329, DUET_STATUS_PRINT_ITEM, &args);
+		ret = duet_print_item(id);
 		if (ret < 0) {
 			perror("print item: syscall failed");
 			return 0;

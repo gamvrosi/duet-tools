@@ -73,7 +73,7 @@ int duet_register(const char *name, __u32 regmask, const char *path)
 
 	ret = ioctl(duet_fd, DUET_IOC_INIT, &args);
 	if (ret < 0)
-		perror("duet_register: syscall failed");
+		perror("duet_register: ioctl failed");
 
 	if (!ret)
 		duet_dbg(stdout, "Error registering task %s.\n", name);
@@ -94,7 +94,7 @@ int duet_set_done(struct duet_uuid uuid)
 
 	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
-		perror("duet_set_done: syscall failed");
+		perror("duet_set_done: ioctl failed");
 
 	if (!ret)
 		duet_dbg("Added (ino%lu, gen%u) to task %d\n",
@@ -114,7 +114,7 @@ int duet_reset_done(struct duet_uuid uuid)
 
 	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
-		perror("duet_reset_done: syscall failed");
+		perror("duet_reset_done: ioctl failed");
 
 	if (!ret)
 		duet_dbg("Removed (ino%lu, gen%u) to task %d\n",
@@ -134,7 +134,7 @@ int duet_check_done(struct duet_uuid uuid)
 
 	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
-		perror("duet_check_done: syscall failed");
+		perror("duet_check_done: ioctl failed");
 
 	if (ret >= 0)
 		duet_dbg("(ino%lu, gen%u) in task %d is %sset (ret%d)\n",
@@ -161,7 +161,7 @@ char *duet_get_path(struct duet_uuid uuid)
 
 	ret = ioctl(duet_fd, DUET_IOC_GPATH, &args);
 	if (ret < 0)
-		perror("duet_get_path: syscall failed");
+		perror("duet_get_path: ioctl failed");
 
 	if (!ret)
 		duet_dbg("(ino%lu, gen%u) was matched to path %s\n",
@@ -190,7 +190,7 @@ int duet_print_bmap(int id)
 
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
-		perror("duet_print_bmap: syscall failed");
+		perror("duet_print_bmap: ioctl failed");
 		return ret;
 	}
 
@@ -216,7 +216,7 @@ int duet_print_item(int id)
 
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
-		perror("duet_print_item: syscall failed");
+		perror("duet_print_item: ioctl failed");
 		return ret;
 	}
 
@@ -261,7 +261,7 @@ int duet_print_list(int numtasks)
 
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, args);
 	if (ret < 0) {
-		perror("duet_print_list: syscall failed");
+		perror("duet_print_list: ioctl failed");
 		goto out;
 	}
 
