@@ -25,51 +25,58 @@
 #include <sys/stat.h>
 #include "ioctl.h"
 
-#define DUET_DEV_NAME   "/dev/duet"		
+#define DUET_DEV_NAME   "/dev/duet"
 
-int open_duet_dev(void)		
-{		
-	int ret;		
-	struct stat st;		
+int open_duet_dev(void)
+{
+	int ret, duet_fd = -1;
+	struct stat st;
 
-	ret = stat(DUET_DEV_NAME, &st);		
-	if (ret < 0) {		
-		ret = system("modprobe duet");		
-		if (ret == -1)		
-			return -1;		
-		
-		ret = stat(DUET_DEV_NAME, &st);		
-		if (ret < 0)		
-			return -1;		
-	}		
-		
-	if (S_ISCHR(st.st_mode))		
-		duet_fd = open(DUET_DEV_NAME, O_RDWR);		
-		
-	return duet_fd;		
-}		
-		
-void close_duet_dev(void)
-{		
-	int ret;		
-	struct stat st;		
-		
-	ret = stat(DUET_DEV_NAME, &st);		
-	if (ret < 0)		
-		return;		
-		
-	close(duet_fd);		
+	ret = stat(DUET_DEV_NAME, &st);
+	if (ret < 0) {
+		ret = system("modprobe duet");
+		if (ret == -1)
+			return -1;
+
+		ret = stat(DUET_DEV_NAME, &st);
+		if (ret < 0)
+			return -1;
+	}
+
+	if (S_ISCHR(st.st_mode))
+		duet_fd = open(DUET_DEV_NAME, O_RDWR);
+
+	return duet_fd;
+}
+
+void close_duet_dev(int duet_fd)
+{
+	int ret;
+	struct stat st;
+
+	ret = stat(DUET_DEV_NAME, &st);
+	if (ret < 0)
+		return;
+
+	close(duet_fd);
 }
 
 int duet_register(const char *name, __u32 regmask, const char *path)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_init_args args;
 
 	args.size = sizeof(args);
 	memcpy(args.name, name, NAME_MAX);
 	args.regmask = regmask;
 	memcpy(args.path, path, PATH_MAX);
+
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
 
 	ret = ioctl(duet_fd, DUET_IOC_INIT, &args);
 	if (ret < 0)
@@ -80,17 +87,25 @@ int duet_register(const char *name, __u32 regmask, const char *path)
 	else
 		duet_dbg(stdout, "Successfully registered task %s.\n", name);
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 int duet_set_done(struct duet_uuid uuid)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_bmap_args args;
 
 	args.size = sizeof(args);
 	args.flags = DUET_BMAP_SET;
 	args.uuid = uuid;
+
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
 
 	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
@@ -100,17 +115,25 @@ int duet_set_done(struct duet_uuid uuid)
 		duet_dbg("Added (ino%lu, gen%u) to task %d\n",
 			args.uuid.ino, args.uuid.gen, args.uuid.tid);
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 int duet_reset_done(struct duet_uuid uuid)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_bmap_args args;
 
 	args.size = sizeof(args);
 	args.flags = DUET_BMAP_RESET;
 	args.uuid = uuid;
+
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
 
 	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
@@ -120,17 +143,25 @@ int duet_reset_done(struct duet_uuid uuid)
 		duet_dbg("Removed (ino%lu, gen%u) to task %d\n",
 			args.uuid.ino, args.uuid.gen, args.uuid.tid);
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 int duet_check_done(struct duet_uuid uuid)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_bmap_args args;
 
 	args.size = sizeof(args);
 	args.flags = DUET_BMAP_CHECK;
 	args.uuid = uuid;
+
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
 
 	ret = ioctl(duet_fd, DUET_IOC_BMAP, &args);
 	if (ret < 0)
@@ -141,13 +172,14 @@ int duet_check_done(struct duet_uuid uuid)
 			args.uuid.ino, args.uuid.gen, args.uuid.tid,
 			(ret == 1) ? "" : "not ", ret);
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 /* Caller needs to free returned path */
 char *duet_get_path(struct duet_uuid uuid)
 {
-	int ret;
+	int duet_fd, ret;
 	char *path;
 	struct duet_ioctl_gpath_args args;
 
@@ -158,6 +190,14 @@ char *duet_get_path(struct duet_uuid uuid)
 	args.size = sizeof(args);
 	args.uuid = uuid;
 	args.path[0] = '\0';
+
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		free(path);
+		return NULL;
+	}
 
 	ret = ioctl(duet_fd, DUET_IOC_GPATH, &args);
 	if (ret < 0)
@@ -170,12 +210,13 @@ char *duet_get_path(struct duet_uuid uuid)
 	if (ret)
 		memcpy(path, args.path, PATH_MAX);
 
+	close_duet_dev(duet_fd);
 	return path;
 }
 
 int duet_print_bmap(int id)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_status_args args;
 
 	if (id <= 0) {
@@ -188,20 +229,29 @@ int duet_print_bmap(int id)
 	args.flags = DUET_STATUS_PRINT_BMAP;
 	args.id = id;
 
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
+
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet_print_bmap: ioctl failed");
+		close_duet_dev(duet_fd);
 		return ret;
 	}
 
 	fprintf(stdout, "Check dmesg for the BitTree of task %d\n", args.id);
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 int duet_print_item(int id)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_status_args args;
 
 	if (id <= 0) {
@@ -214,14 +264,23 @@ int duet_print_item(int id)
 	args.flags = DUET_STATUS_PRINT_ITEM;
 	args.id = id;
 
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
+
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet_print_item: ioctl failed");
+		close_duet_dev(duet_fd);
 		return ret;
 	}
 
 	fprintf(stdout, "check dmesg for the ItemTree of task %d\n", args.id);
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
@@ -237,7 +296,7 @@ int duet_print_item(int id)
 
 int duet_print_list(int numtasks)
 {
-	int i, ret = 0;
+	int duet_fd, i, ret = 0;
 	struct duet_ioctl_status_args *args;
 	size_t args_size;
 
@@ -259,9 +318,17 @@ int duet_print_list(int numtasks)
 	args->flags = DUET_STATUS_PRINT_LIST;
 	args->numtasks = numtasks;
 
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
+
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, args);
 	if (ret < 0) {
 		perror("duet_print_list: ioctl failed");
+		close_duet_dev(duet_fd);
 		goto out;
 	}
 
@@ -283,5 +350,6 @@ int duet_print_list(int numtasks)
 
 out:
 	free(args);
+	close_duet_dev(duet_fd);
 	return ret;
 }

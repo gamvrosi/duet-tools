@@ -79,11 +79,9 @@ struct duet_item {
 	__u16			state;
 };
 
-extern int duet_fd;
-
+int open_duet_dev(void);
+void close_duet_dev(int duet_fd);
 int duet_register(const char *name, __u32 regmask, const char *path);
-int duet_deregister(int duet_fd, int tid);
-int duet_fetch(int duet_fd, int tid, struct duet_item *items, int *count);
 int duet_set_done(struct duet_uuid uuid);
 int duet_reset_done(struct duet_uuid uuid);
 int duet_check_done(struct duet_uuid uuid);
@@ -91,7 +89,5 @@ char *duet_get_path(struct duet_uuid uuid);
 int duet_print_bmap(int id);
 int duet_print_item(int id);
 int duet_print_list(int numtasks);
-int open_duet_dev(void);
-void close_duet_dev(void);
 
 #endif /* _DUET_H */

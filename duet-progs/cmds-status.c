@@ -54,7 +54,7 @@ static const char * const cmd_status_report_usage[] = {
 
 static int cmd_status_start(int argc, char **argv)
 {
-	int c, ret = 0;
+	int duet_fd, c, ret = 0;
 	struct duet_ioctl_status_args args;
 
 	memset(&args, 0, sizeof(args));
@@ -81,47 +81,72 @@ static int cmd_status_start(int argc, char **argv)
 	if (argc != optind)
 		usage(cmd_status_start_usage);
 
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
+
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet status: start failed");
+		close_duet_dev(duet_fd);
 		usage(cmd_status_start_usage);
 	}
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 static int cmd_status_stop(int argc, char **argv)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_status_args args;
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
 	args.flags = DUET_STATUS_STOP;
 
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
+
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet status: stop failed");
+		close_duet_dev(duet_fd);
 		usage(cmd_status_stop_usage);
 	}
 
+	close_duet_dev(duet_fd);
 	return ret;
 }
 
 static int cmd_status_report(int argc, char **argv)
 {
-	int ret = 0;
+	int duet_fd, ret = 0;
 	struct duet_ioctl_status_args args;
 
 	memset(&args, 0, sizeof(args));
 	args.size = sizeof(args);
 	args.flags = DUET_STATUS_REPORT;
 
+	/* Open the duet device */
+	duet_fd = open_duet_dev();
+	if (duet_fd == -1) {
+		fprintf(stderr, "Error: failed to open duet device\n");
+		return -1;
+	}
+
 	ret = ioctl(duet_fd, DUET_IOC_STATUS, &args);
 	if (ret < 0) {
 		perror("duet status: report failed");
+		close_duet_dev(duet_fd);
 		usage(cmd_status_report_usage);
-		return ret;
 	}
 
 	if (!ret)
@@ -129,6 +154,7 @@ static int cmd_status_report(int argc, char **argv)
 	else
 		fprintf(stdout, "Duet framework status: Online.\n");
 
+	close_duet_dev(duet_fd);
 	return 0;
 }
 

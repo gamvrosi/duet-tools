@@ -20,8 +20,6 @@
 #include "commands.h"
 #include "version.h"
 
-int duet_fd;
-
 static const char * const duet_cmd_group_usage[] = {
 	"duet [--help] [--version] <group> [<group>...] <command> [<args>]",
 	NULL
@@ -232,13 +230,6 @@ int main(int argc, char **argv)
 	int ret;
 	const struct cmd_struct *cmd;
 
-	/* Open the duet device */
-	duet_fd = open_duet_dev();
-	if (duet_fd == -1) {
-		fprintf(stderr, "Error: failed to open duet device\n");
-		return -1;
-	}
-
 	/* Skip the duet name */
 	argc--;
 	argv++;
@@ -258,6 +249,5 @@ int main(int argc, char **argv)
 	fixup_argv0(argv, cmd->token);
 	ret = cmd->fn(argc, argv);
 
-	close_duet_dev();
 	exit(ret);
 }
