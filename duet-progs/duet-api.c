@@ -203,12 +203,11 @@ char *duet_get_path(struct duet_uuid uuid)
 	if (ret < 0)
 		perror("duet_get_path: ioctl failed");
 
-	if (!ret)
+	if (!ret) {
 		duet_dbg("(ino%lu, gen%u) was matched to path %s\n",
 			args.uuid.ino, args.uuid.gen, args.path);
-
-	if (ret)
 		memcpy(path, args.path, PATH_MAX);
+	}
 
 	close_duet_dev(duet_fd);
 	return path;
