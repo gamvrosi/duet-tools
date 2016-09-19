@@ -59,9 +59,9 @@ have an existing KVM server, skip to step 3.
    git clone git@github.com:gamvrosi/duet-module.git
    git clone git@github.com:gamvrosi/duet-tools.git
    
-   # Switch duet-kernel to branch with duet hook support
+   # Switch duet-kernel to branch with duet tracepoint hook support
    cd duet-kernel
-   git checkout duet
+   git checkout tracepoints
    ```
 
 4. Create a new VM under KVM, running Ubuntu 16.04 server. Edit the VM's config
