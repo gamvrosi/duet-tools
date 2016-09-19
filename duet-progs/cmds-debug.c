@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 George Amvrosiadis.  All rights reserved.
+ * Copyright (C) 2016 George Amvrosiadis.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -53,7 +53,7 @@ int dsh_print(char **argv)
 
 		ret = duet_print_bmap(id);
 		if (ret < 0) {
-			perror("print bmap: syscall failed");
+			perror("print bmap: ioctl failed");
 			return 0;
 		}
 
@@ -69,7 +69,7 @@ int dsh_print(char **argv)
 
 		ret = duet_print_item(id);
 		if (ret < 0) {
-			perror("print item: syscall failed");
+			perror("print item: ioctl failed");
 			return 0;
 		}
 
