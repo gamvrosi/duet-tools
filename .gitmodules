@@ -1,3 +1,9 @@
 [submodule "tests/filebench"]
 	path = tests/filebench
 	url = git@github.com:filebench/filebench.git
+[submodule "duet-module"]
+	path = duet-module
+	url = git@github.com:gamvrosi/duet-module.git
+[submodule "duet-kernel"]
+	path = duet-kernel
+	url = git@github.com:gamvrosi/duet-kernel.git
