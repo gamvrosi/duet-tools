@@ -53,6 +53,10 @@ while getopts ":dckgmtKMTu" opt; do
 		cd "${BASEDIR}/../duet-kernel"
 		rm .config
 		touch .scmversion
+
+		# XXX: Remove when make-kpkg stops expecting REPORTING-BUGS to be there
+		touch REPORTING-BUGS
+
 		make localmodconfig || die
 
 		cat .config | sed 's/# CONFIG_DUET is not set/CONFIG_DUET=y/g' | \
