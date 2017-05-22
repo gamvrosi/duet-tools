@@ -27,7 +27,7 @@ die() {
 	exit 1
 }
 
-cd "${BASEDIR}/../duet-kernel"
+cd "${BASEDIR}/duet-kernel"
 KERNEL_VERSION_APPEND="+duet-$(git rev-parse --short HEAD)"
 cd "${STARTDIR}"
 
@@ -50,7 +50,7 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	c)
-		cd "${BASEDIR}/../duet-kernel"
+		cd "${BASEDIR}/duet-kernel"
 		rm .config
 		touch .scmversion
 
@@ -66,7 +66,7 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	[kg])
-		cd "${BASEDIR}/.."
+		cd "${BASEDIR}"
 		KDBG=`test $opt == 'g' && echo kernel_debug`
 
 		# Prep the environment
@@ -76,7 +76,7 @@ while getopts ":dckgmtKMTu" opt; do
 		echo CONCURRENCY_LEVEL=$CONCURRENCY_LEVEL
 
 		# (re)compile the kernel
-		cd "${BASEDIR}/../duet-kernel"
+		cd "${BASEDIR}/duet-kernel"
 		time fakeroot make-kpkg --initrd --append-to-version="${KERNEL_VERSION_APPEND}" \
 			kernel_image kernel_headers $KDBG || die
 
@@ -84,7 +84,7 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	m)
-		cd "${BASEDIR}/../duet-module"
+		cd "${BASEDIR}/duet-module"
 
 		# (re)compile the duet module
 		moddir="`ls -l /lib/modules | grep ${KERNEL_VERSION_APPEND} | \
@@ -95,7 +95,7 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	t)
-		cd "${BASEDIR}/../duet-tools"
+		cd "${BASEDIR}"
 
 		# (re)compile the duet tools
 		cd duet-progs
@@ -113,13 +113,13 @@ while getopts ":dckgmtKMTu" opt; do
 		;;
 	K)
 		# Install the kernel
-		sudo dpkg -i "${BASEDIR}"/../linux-headers-*"${KERNEL_VERSION_APPEND}"*.deb || die
-		sudo dpkg -i "${BASEDIR}"/../linux-image-*"${KERNEL_VERSION_APPEND}"*.deb || die
+		sudo dpkg -i "${BASEDIR}"/linux-headers-*"${KERNEL_VERSION_APPEND}"*.deb || die
+		sudo dpkg -i "${BASEDIR}"/linux-image-*"${KERNEL_VERSION_APPEND}"*.deb || die
 
 		exit 0
 		;;
 	M)
-		cd "${BASEDIR}/../duet-module"
+		cd "${BASEDIR}/duet-module"
 
 		# Install the module
 		moddir="`ls -l /lib/modules | grep ${KERNEL_VERSION_APPEND} | \
@@ -132,7 +132,7 @@ while getopts ":dckgmtKMTu" opt; do
 		exit 0
 		;;
 	T)
-		cd "${BASEDIR}/../duet-tools"
+		cd "${BASEDIR}"
 
 		# Install the duet tools (in /usr/local/bin)
 		cd duet-progs
@@ -147,7 +147,7 @@ while getopts ":dckgmtKMTu" opt; do
 		sudo dpkg -P $DPKGS || die
 
 		# Get .deb packages in BASEDIR of all but latest Duet kernel
-		cd "${BASEDIR}/.."
+		cd "${BASEDIR}"
 		ls | grep -E 'linux-.*.deb' | grep -v $KERNEL_VERSION_APPEND | \
 			tr '\n' ' ' | xargs rm -v || die
 
