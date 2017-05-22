@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # Find location of this setup.sh
 STARTDIR="$(pwd)"
