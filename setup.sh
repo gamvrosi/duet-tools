@@ -54,9 +54,6 @@ while getopts ":dckgmtKMTu" opt; do
 		rm .config
 		touch .scmversion
 
-		# XXX: Remove when make-kpkg stops expecting REPORTING-BUGS to be there
-		touch REPORTING-BUGS
-
 		make localmodconfig || die
 
 		cat .config | sed 's/# CONFIG_DUET is not set/CONFIG_DUET=y/g' | \
@@ -77,6 +74,10 @@ while getopts ":dckgmtKMTu" opt; do
 
 		# (re)compile the kernel
 		cd "${BASEDIR}/duet-kernel"
+
+		# XXX: Remove when make-kpkg stops expecting REPORTING-BUGS to be there
+		touch REPORTING-BUGS
+
 		time fakeroot make-kpkg --initrd --append-to-version="${KERNEL_VERSION_APPEND}" \
 			kernel_image kernel_headers $KDBG || die
 
